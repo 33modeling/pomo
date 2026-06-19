@@ -4,6 +4,7 @@ import type { ID, TimerMode } from '../types'
 import { audio } from '../audio/audioEngine'
 import { durationSecFor, useSettingsStore } from './settingsStore'
 import { applyAccentForMode } from './themeStore'
+import { useUiStore } from './uiStore'
 import {
   addSession,
   getTask,
@@ -219,6 +220,9 @@ export const useTimerStore = create<TimerState>()(
           const s = get()
           if (s.status === 'running') return
           beginSegment(false)
+          if (useSettingsStore.getState().clockOnStart) {
+            useUiStore.getState().openClock()
+          }
         },
 
         pause: () => {

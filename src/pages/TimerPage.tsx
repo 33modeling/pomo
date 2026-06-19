@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import {
   Check,
   ListTodo,
+  Maximize2,
   Music2,
   Pause,
   Play,
@@ -24,6 +25,7 @@ import { mmss } from '../lib/format'
 import { cn } from '../lib/cn'
 import { MODE_LABEL, useTimerStore } from '../store/timerStore'
 import { useSettingsStore } from '../store/settingsStore'
+import { useUiStore } from '../store/uiStore'
 import type { TimerMode } from '../types'
 import { SoundsSheet } from './SoundsSheet'
 
@@ -52,6 +54,7 @@ export function TimerPage() {
 
   const longBreakInterval = useSettingsStore((s) => s.longBreakInterval)
   const dailyGoal = useSettingsStore((s) => s.dailyGoal)
+  const openClock = useUiStore((s) => s.openClock)
 
   const running = status === 'running'
 
@@ -88,9 +91,14 @@ export function TimerPage() {
       <Header
         title="Pomo"
         right={
-          <IconButton label="사운드" onClick={() => setSoundsOpen(true)}>
-            <Music2 size={20} strokeWidth={2} />
-          </IconButton>
+          <>
+            <IconButton label="탁상시계" onClick={openClock}>
+              <Maximize2 size={20} strokeWidth={2} />
+            </IconButton>
+            <IconButton label="사운드" onClick={() => setSoundsOpen(true)}>
+              <Music2 size={20} strokeWidth={2} />
+            </IconButton>
+          </>
         }
       />
 

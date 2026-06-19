@@ -117,4 +117,7 @@ export interface Settings {
   vibrationEnabled: boolean
   notificationsEnabled: boolean
   keepAwake: boolean
+
+  // display
+  clockOnStart: boolean // enter the full-screen desk-clock view when starting
 }

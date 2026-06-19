@@ -360,6 +360,16 @@ export function SettingsPage() {
               onChange={setTheme}
             />
           </div>
+          <Row
+            label="시작 시 탁상시계 모드"
+            hint="타이머를 시작하면 큰 시계 화면으로 전환"
+            control={
+              <Switch
+                checked={s.clockOnStart}
+                onChange={(v) => update({ clockOnStart: v })}
+              />
+            }
+          />
         </Section>
 
         {/* 정보 */}

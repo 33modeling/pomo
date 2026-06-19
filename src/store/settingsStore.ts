@@ -25,6 +25,8 @@ export const DEFAULT_SETTINGS: Settings = {
   vibrationEnabled: true,
   notificationsEnabled: true,
   keepAwake: true,
+
+  clockOnStart: false,
 }
 
 interface SettingsState extends Settings {
