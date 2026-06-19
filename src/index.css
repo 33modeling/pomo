@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light theme tokens (space-separated RGB for <alpha-value> support) */
+    --bg: 247 247 249;
+    --surface: 255 255 255;
+    --surface-2: 241 241 245;
+    --line: 228 228 234;
+    --ink: 24 24 28;
+    --muted: 92 92 102;
+    --faint: 148 148 160;
+    --on-accent: 255 255 255;
+    --accent: 235 84 71; /* default: focus */
+
+    /* Per-mode accents (overridden at runtime via --accent) */
+    --focus: 235 84 71; /* warm tomato red */
+    --short: 22 163 122; /* teal green */
+    --long: 56 121 222; /* calm blue */
+  }
+
+  .dark {
+    --bg: 10 10 14;
+    --surface: 22 22 28;
+    --surface-2: 31 31 39;
+    --line: 44 44 55;
+    --ink: 240 240 245;
+    --muted: 158 158 170;
+    --faint: 104 104 118;
+    --on-accent: 255 255 255;
+    --accent: 240 102 90;
+
+    --focus: 240 102 90;
+    --short: 38 192 146;
+    --long: 84 148 248;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+    margin: 0;
+    overscroll-behavior-y: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Respect the device safe areas (notch / home indicator) */
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  input,
+  textarea {
+    font: inherit;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+  .pt-safe {
+    padding-top: var(--safe-top);
+  }
+  .pb-safe {
+    padding-bottom: var(--safe-bottom);
+  }
+  .mb-safe {
+    margin-bottom: var(--safe-bottom);
+  }
+}
