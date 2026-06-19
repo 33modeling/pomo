@@ -48,6 +48,53 @@ npm run typecheck  # 타입 검사만
 
 > 알림·진동·화면 유지 등 일부 기능은 HTTPS(또는 localhost)에서만 동작합니다.
 
+## 🤖 안드로이드 APK 빌드 (Capacitor)
+
+PWA를 **Capacitor**로 감싸 오프라인 설치형 **APK**로 만듭니다. (웹 빌드 결과가 APK 안에 포함되어 서버 호스팅이 필요 없습니다.)
+
+### 1) 빌드 도구 준비 (1회, sudo 불필요)
+
+JDK 21 + Android SDK를 홈 디렉터리에 설치하는 스크립트가 포함되어 있습니다:
+
+```bash
+bash scripts/setup-android.sh
+# 이후 안내대로 JAVA_HOME / ANDROID_HOME 를 export
+```
+
+> 이미 Android Studio가 있다면 이 단계는 생략하고, `android/local.properties`에 `sdk.dir=<SDK 경로>`만 맞춰주면 됩니다.
+
+### 2) APK 빌드
+
+```bash
+npm run android:apk
+# 결과: android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+기기/에뮬레이터에 설치:
+
+```bash
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Android Studio로 열어서 빌드/실행하려면:
+
+```bash
+npm run android:open
+```
+
+### 웹 변경사항 반영
+
+웹 코드를 고친 뒤에는 `npm run android:sync`(빌드 + 네이티브로 복사) 후 다시 APK를 빌드하세요.
+`npm run android:apk`는 이 과정을 한 번에 처리합니다.
+
+| 항목 | 값 |
+| --- | --- |
+| applicationId | `com.pomo.app` |
+| minSdk / targetSdk | 23 / 35 |
+| Capacitor | 7.x (JDK 21, Gradle 8.11) |
+
+> 릴리스(서명) APK는 `npm run android:apk:release` 후 키스토어로 서명하세요. 디버그 APK는 디버그 키로 자동 서명되어 바로 설치됩니다.
+
 ## 🗂 구조
 
 ```

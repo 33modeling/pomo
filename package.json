@@ -7,7 +7,13 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview --host"
+    "preview": "vite preview --host",
+    "cap:sync": "cap sync android",
+    "android:sync": "npm run build && cap sync android",
+    "android:apk": "npm run build && cap sync android && cd android && ./gradlew assembleDebug",
+    "android:apk:release": "npm run build && cap sync android && cd android && ./gradlew assembleRelease",
+    "android:open": "cap open android",
+    "android:icons": "node scripts/gen-icons.mjs && node scripts/gen-android-icons.mjs"
   },
   "repository": {
     "type": "git",
@@ -28,6 +34,7 @@
   },
   "homepage": "https://github.com/33modeling/pomo#readme",
   "devDependencies": {
+    "@capacitor/cli": "^7.6.7",
     "@types/node": "^26.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
@@ -40,6 +47,8 @@
     "vite-plugin-pwa": "^1.3.0"
   },
   "dependencies": {
+    "@capacitor/android": "^7.6.7",
+    "@capacitor/core": "^7.6.7",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "dexie": "^4.4.4",
