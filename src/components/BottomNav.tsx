@@ -1,19 +1,21 @@
 import { BarChart3, ListChecks, Settings, Timer } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { cn } from '../lib/cn'
+import { useT } from '../i18n'
 
 const ITEMS = [
-  { to: '/', label: '타이머', icon: Timer, end: true },
-  { to: '/tasks', label: '할 일', icon: ListChecks, end: false },
-  { to: '/stats', label: '통계', icon: BarChart3, end: false },
-  { to: '/settings', label: '설정', icon: Settings, end: false },
+  { to: '/', labelKey: 'nav.timer', icon: Timer, end: true },
+  { to: '/tasks', labelKey: 'nav.tasks', icon: ListChecks, end: false },
+  { to: '/stats', labelKey: 'nav.stats', icon: BarChart3, end: false },
+  { to: '/settings', labelKey: 'nav.settings', icon: Settings, end: false },
 ] as const
 
 export function BottomNav() {
+  const t = useT()
   return (
     <nav className="z-30 border-t border-line bg-surface/90 pb-safe backdrop-blur-lg">
       <div className="flex">
-        {ITEMS.map(({ to, label, icon: Icon, end }) => (
+        {ITEMS.map(({ to, labelKey, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
@@ -33,7 +35,7 @@ export function BottomNav() {
                     isActive ? 'text-accent' : 'text-faint',
                   )}
                 >
-                  {label}
+                  {t(labelKey)}
                 </span>
               </>
             )}

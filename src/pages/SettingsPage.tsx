@@ -32,6 +32,7 @@ import { exportSessionsCsv, exportToFile, importFromFile } from '../lib/backup'
 import type { AlarmSoundId, Theme } from '../types'
 import { cn } from '../lib/cn'
 import { SoundsSheet } from './SoundsSheet'
+import { useT, useI18nStore, type LangPref } from '../i18n'
 
 /** Built-in timer presets are not deletable. */
 const DEFAULT_PRESET_COUNT = DEFAULT_SETTINGS.timerPresets.length
@@ -99,17 +100,20 @@ function SliderRow({
 }
 
 export function SettingsPage() {
+  const t = useT()
   const s = useSettingsStore()
   const update = useSettingsStore((st) => st.update)
   const reset = useSettingsStore((st) => st.reset)
   const theme = useThemeStore((st) => st.theme)
   const setTheme = useThemeStore((st) => st.setTheme)
+  const langPref = useI18nStore((st) => st.pref)
+  const setLangPref = useI18nStore((st) => st.setPref)
 
   // Stop any sound previewed here when leaving, unless a focus session is live.
   useEffect(() => {
     return () => {
-      const t = useTimerStore.getState()
-      if (!(t.status === 'running' && t.mode === 'focus')) {
+      const timer = useTimerStore.getState()
+      if (!(timer.status === 'running' && timer.mode === 'focus')) {
         audio.stopNoise()
         audio.stopTicking()
       }
@@ -129,17 +133,17 @@ export function SettingsPage() {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    if (!confirm('현재 데이터를 백업 파일로 덮어쓸까요? 되돌릴 수 없습니다.')) return
+    if (!confirm(t('settings.import.confirm'))) return
     try {
       const r = await importFromFile(file)
-      alert(`가져오기 완료 — 할 일 ${r.tasks}개, 기록 ${r.sessions}개`)
+      alert(t('settings.import.success', { tasks: r.tasks, sessions: r.sessions }))
     } catch (err) {
-      alert(err instanceof Error ? err.message : '가져오기에 실패했습니다.')
+      alert(err instanceof Error ? err.message : t('settings.import.error'))
     }
   }
 
   const saveCurrentPreset = () => {
-    const name = prompt('프리셋 이름')?.trim()
+    const name = prompt(t('settings.preset.namePrompt'))?.trim()
     if (!name) return
     update({
       timerPresets: [
@@ -165,71 +169,79 @@ export function SettingsPage() {
   }
 
   const themeOptions: { value: Theme; label: string }[] = [
-    { value: 'light', label: '라이트' },
-    { value: 'dark', label: '다크' },
-    { value: 'system', label: '시스템' },
+    { value: 'light', label: t('theme.light') },
+    { value: 'dark', label: t('theme.dark') },
+    { value: 'system', label: t('theme.system') },
+  ]
+
+  const langOptions: { value: LangPref; label: string }[] = [
+    { value: 'system', label: t('lang.system') },
+    { value: 'ko', label: t('lang.ko') },
+    { value: 'en', label: t('lang.en') },
   ]
 
   return (
     <div className="animate-fade-in">
-      <Header title="설정" />
+      <Header title={t('settings.title')} />
       <div className="space-y-7 px-5 pb-8 pt-2">
         {/* 타이머 */}
-        <Section icon={<Timer size={14} />} title="타이머">
+        <Section icon={<Timer size={14} />} title={t('settings.section.timer')}>
           <Row
-            label="집중 시간"
+            label={t('settings.focusTime')}
             control={
               <Stepper
                 value={s.focusMin}
                 onChange={(v) => update({ focusMin: v })}
                 min={1}
                 max={180}
-                suffix="분"
+                suffix={t('settings.suffix.min')}
               />
             }
           />
           <Row
-            label="짧은 휴식"
+            label={t('settings.shortBreak')}
             control={
               <Stepper
                 value={s.shortMin}
                 onChange={(v) => update({ shortMin: v })}
                 min={1}
                 max={180}
-                suffix="분"
+                suffix={t('settings.suffix.min')}
               />
             }
           />
           <Row
-            label="긴 휴식"
+            label={t('settings.longBreak')}
             control={
               <Stepper
                 value={s.longMin}
                 onChange={(v) => update({ longMin: v })}
                 min={1}
                 max={180}
-                suffix="분"
+                suffix={t('settings.suffix.min')}
               />
             }
           />
           <Row
-            label="긴 휴식 간격"
-            hint="집중 N회마다 긴 휴식"
+            label={t('settings.longBreakInterval')}
+            hint={t('settings.longBreakInterval.hint')}
             control={
               <Stepper
                 value={s.longBreakInterval}
                 onChange={(v) => update({ longBreakInterval: v })}
                 min={2}
                 max={12}
-                suffix="회"
+                suffix={t('settings.suffix.count')}
               />
             }
           />
           <div className="space-y-3 py-3">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-[15px] font-medium text-ink">프리셋</p>
+              <p className="text-[15px] font-medium text-ink">
+                {t('settings.preset')}
+              </p>
               <Button size="sm" variant="ghost" onClick={saveCurrentPreset}>
-                현재 설정 저장
+                {t('settings.preset.save')}
               </Button>
             </div>
             <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
@@ -263,12 +275,12 @@ export function SettingsPage() {
                       }
                       className={cn(!active && 'hover:text-ink')}
                     >
-                      {p.name}
+                      {t(p.name)}
                     </button>
                     {deletable && (
                       <button
                         type="button"
-                        aria-label={`${p.name} 삭제`}
+                        aria-label={t('settings.preset.delete', { name: t(p.name) })}
                         onClick={() =>
                           update({
                             timerPresets: s.timerPresets.filter(
@@ -289,9 +301,12 @@ export function SettingsPage() {
         </Section>
 
         {/* 자동화 */}
-        <Section icon={<Zap size={14} />} title="자동화">
+        <Section
+          icon={<Zap size={14} />}
+          title={t('settings.section.automation')}
+        >
           <Row
-            label="휴식 자동 시작"
+            label={t('settings.autoStartBreaks')}
             control={
               <Switch
                 checked={s.autoStartBreaks}
@@ -300,7 +315,7 @@ export function SettingsPage() {
             }
           />
           <Row
-            label="다음 집중 자동 시작"
+            label={t('settings.autoStartFocus')}
             control={
               <Switch
                 checked={s.autoStartFocus}
@@ -311,29 +326,31 @@ export function SettingsPage() {
         </Section>
 
         {/* 목표 */}
-        <Section icon={<Target size={14} />} title="목표">
+        <Section icon={<Target size={14} />} title={t('settings.section.goal')}>
           <Row
-            label="하루 목표"
-            hint="하루에 완료할 집중 횟수"
+            label={t('settings.dailyGoal')}
+            hint={t('settings.dailyGoal.hint')}
             control={
               <Stepper
                 value={s.dailyGoal}
                 onChange={(v) => update({ dailyGoal: v })}
                 min={1}
                 max={30}
-                suffix="개"
+                suffix={t('settings.suffix.times')}
               />
             }
           />
         </Section>
 
         {/* 사운드 */}
-        <Section icon={<Volume2 size={14} />} title="사운드">
+        <Section icon={<Volume2 size={14} />} title={t('settings.section.sound')}>
           <div className="space-y-3 py-3">
             <div className="flex items-center justify-between">
-              <p className="text-[15px] font-medium text-ink">알림음</p>
+              <p className="text-[15px] font-medium text-ink">
+                {t('settings.alarmSound')}
+              </p>
               <IconButton
-                label="미리듣기"
+                label={t('settings.preview')}
                 onClick={() => audio.previewAlarm(s.alarmSound, s.alarmVolume)}
               >
                 <Play size={18} />
@@ -352,20 +369,20 @@ export function SettingsPage() {
                       : 'bg-surface-2 text-muted hover:text-ink',
                   )}
                 >
-                  {a.label}
+                  {t(`alarm.${a.id}`)}
                 </button>
               ))}
             </div>
           </div>
 
           <SliderRow
-            label="알림음 볼륨"
+            label={t('settings.alarmVolume')}
             value={s.alarmVolume}
             onChange={(v) => update({ alarmVolume: v })}
           />
 
           <Row
-            label="초침 소리"
+            label={t('settings.ticking')}
             control={
               <Switch
                 checked={s.tickingEnabled}
@@ -375,7 +392,7 @@ export function SettingsPage() {
           />
           {s.tickingEnabled && (
             <SliderRow
-              label="초침 볼륨"
+              label={t('settings.tickingVolume')}
               value={s.tickingVolume}
               onChange={(v) => {
                 update({ tickingVolume: v })
@@ -390,11 +407,13 @@ export function SettingsPage() {
             className="flex w-full items-center justify-between py-3 text-left"
           >
             <div>
-              <p className="text-[15px] font-medium text-ink">집중 사운드</p>
+              <p className="text-[15px] font-medium text-ink">
+                {t('settings.focusSound')}
+              </p>
               <p className="mt-0.5 text-xs text-muted">
                 {soundCount > 0
-                  ? `${soundCount}개 믹스 중`
-                  : '자연의 소리·노이즈 믹스, 사운드 타이머'}
+                  ? t('settings.focusSound.mixing', { count: soundCount })
+                  : t('settings.focusSound.hint')}
               </p>
             </div>
             <ChevronRight size={20} className="shrink-0 text-faint" />
@@ -402,10 +421,13 @@ export function SettingsPage() {
         </Section>
 
         {/* 알림 & 기기 */}
-        <Section icon={<Bell size={14} />} title="알림 & 기기">
+        <Section
+          icon={<Bell size={14} />}
+          title={t('settings.section.notifications')}
+        >
           <Row
-            label="알림"
-            hint="세션 종료 시 알림 표시"
+            label={t('settings.notifications')}
+            hint={t('settings.notifications.hint')}
             control={
               <Switch
                 checked={s.notificationsEnabled}
@@ -414,7 +436,7 @@ export function SettingsPage() {
             }
           />
           <Row
-            label="진동"
+            label={t('settings.vibration')}
             control={
               <Switch
                 checked={s.vibrationEnabled}
@@ -423,8 +445,8 @@ export function SettingsPage() {
             }
           />
           <Row
-            label="화면 켜짐 유지"
-            hint="타이머 진행 중 화면 끄지 않기"
+            label={t('settings.keepAwake')}
+            hint={t('settings.keepAwake.hint')}
             control={
               <Switch
                 checked={s.keepAwake}
@@ -435,18 +457,33 @@ export function SettingsPage() {
         </Section>
 
         {/* 화면 */}
-        <Section icon={<Palette size={14} />} title="화면">
+        <Section
+          icon={<Palette size={14} />}
+          title={t('settings.section.display')}
+        >
           <div className="space-y-3 py-3">
-            <p className="text-[15px] font-medium text-ink">테마</p>
+            <p className="text-[15px] font-medium text-ink">
+              {t('settings.theme')}
+            </p>
             <SegmentedControl
               options={themeOptions}
               value={theme}
               onChange={setTheme}
             />
           </div>
+          <div className="space-y-3 py-3">
+            <p className="text-[15px] font-medium text-ink">
+              {t('settings.language')}
+            </p>
+            <SegmentedControl
+              options={langOptions}
+              value={langPref}
+              onChange={setLangPref}
+            />
+          </div>
           <Row
-            label="시작 시 탁상시계 모드"
-            hint="타이머를 시작하면 큰 시계 화면으로 전환"
+            label={t('settings.clockOnStart')}
+            hint={t('settings.clockOnStart.hint')}
             control={
               <Switch
                 checked={s.clockOnStart}
@@ -457,30 +494,30 @@ export function SettingsPage() {
         </Section>
 
         {/* 데이터 */}
-        <Section icon={<Database size={14} />} title="데이터">
+        <Section icon={<Database size={14} />} title={t('settings.section.data')}>
           <Row
-            label="내보내기"
-            hint="모든 데이터를 JSON 파일로 저장"
+            label={t('settings.export')}
+            hint={t('settings.export.hint')}
             control={
               <Button size="sm" onClick={() => void exportToFile()}>
                 <Download size={16} />
-                내보내기
+                {t('settings.export')}
               </Button>
             }
           />
           <Row
-            label="가져오기"
-            hint="백업 파일에서 복원 (기존 데이터 대체)"
+            label={t('settings.import')}
+            hint={t('settings.import.hint')}
             control={
               <Button size="sm" onClick={() => fileRef.current?.click()}>
                 <Upload size={16} />
-                가져오기
+                {t('settings.import')}
               </Button>
             }
           />
           <Row
-            label="세션 CSV 내보내기"
-            hint="집중 기록을 표로 저장"
+            label={t('settings.exportCsv')}
+            hint={t('settings.exportCsv.hint')}
             control={
               <Button size="sm" onClick={() => void exportSessionsCsv()}>
                 <Download size={16} />
@@ -491,18 +528,18 @@ export function SettingsPage() {
         </Section>
 
         {/* 정보 */}
-        <Section icon={<Info size={14} />} title="정보">
+        <Section icon={<Info size={14} />} title={t('settings.section.info')}>
           <Row
-            label="앱"
+            label={t('settings.app')}
             control={<span className="text-sm text-muted">Pomo</span>}
           />
           <Row
-            label="버전"
+            label={t('settings.version')}
             control={<span className="nums text-sm text-muted">1.0.0</span>}
           />
           <div className="py-3">
             <p className="text-xs leading-relaxed text-faint">
-              모든 데이터는 이 기기에만 저장됩니다 · 로그인 불필요
+              {t('settings.info.note')}
             </p>
           </div>
         </Section>
@@ -511,10 +548,10 @@ export function SettingsPage() {
           variant="danger"
           full
           onClick={() => {
-            if (confirm('설정을 초기화할까요?')) reset()
+            if (confirm(t('settings.reset.confirm'))) reset()
           }}
         >
-          설정 초기화
+          {t('settings.reset')}
         </Button>
       </div>
 

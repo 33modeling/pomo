@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { cn } from '../../lib/cn'
+import { useT } from '../../i18n'
 
 export interface Bar {
   /** Numeric value for the bar (e.g. focus minutes). */
@@ -12,7 +13,7 @@ export interface Bar {
 
 interface Props {
   bars: Bar[]
-  /** Unit appended in the tooltip-ish max readout, e.g. "분". */
+  /** Unit appended in the tooltip-ish max readout, e.g. "min". */
   unit?: string
   className?: string
 }
@@ -21,7 +22,9 @@ interface Props {
  * Lightweight flexbox bar chart. Accent bars with rounded tops, a flat
  * baseline when everything is zero, and sparse x-axis labels.
  */
-export function BarChart({ bars, unit = '분', className }: Props) {
+export function BarChart({ bars, unit, className }: Props) {
+  const t = useT()
+  const unitLabel = unit ?? t('stats.unit.min')
   const max = useMemo(
     () => bars.reduce((m, b) => Math.max(m, b.value), 0),
     [bars],
@@ -39,7 +42,7 @@ export function BarChart({ bars, unit = '분', className }: Props) {
             <div
               key={i}
               className="flex h-full flex-1 flex-col justify-end"
-              title={b.value > 0 ? `${Math.round(b.value)}${unit}` : '0'}
+              title={b.value > 0 ? `${Math.round(b.value)}${unitLabel}` : '0'}
             >
               <div className="relative h-full w-full">
                 <div className="absolute inset-x-0 bottom-0 rounded-t-md bg-line/40" style={{ height: '2px' }} />

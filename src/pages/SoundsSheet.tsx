@@ -7,6 +7,7 @@ import { SegmentedControl } from '../components/SegmentedControl'
 import { Sheet } from '../components/Sheet'
 import { Slider } from '../components/Slider'
 import { Switch } from '../components/Switch'
+import { useT } from '../i18n'
 import { cn } from '../lib/cn'
 import { useSettingsStore } from '../store/settingsStore'
 import { useTimerStore } from '../store/timerStore'
@@ -17,14 +18,16 @@ interface Props {
   onClose: () => void
 }
 
-const AUTO_STOP_OPTIONS = [
-  { value: '0', label: '끄기' },
-  { value: '15', label: '15분' },
-  { value: '30', label: '30분' },
-  { value: '60', label: '60분' },
-]
-
 export function SoundsSheet({ open, onClose }: Props) {
+  const t = useT()
+
+  const AUTO_STOP_OPTIONS = [
+    { value: '0', label: t('common.off') },
+    { value: '15', label: t('sounds.autoStop.15') },
+    { value: '30', label: t('sounds.autoStop.30') },
+    { value: '60', label: t('sounds.autoStop.60') },
+  ]
+
   const soundMix = useSettingsStore((s) => s.soundMix)
   const tickingEnabled = useSettingsStore((s) => s.tickingEnabled)
   const tickingVolume = useSettingsStore((s) => s.tickingVolume)
@@ -91,13 +94,13 @@ export function SoundsSheet({ open, onClose }: Props) {
   }
 
   return (
-    <Sheet open={open} onClose={handleClose} title="사운드">
+    <Sheet open={open} onClose={handleClose} title={t('sounds.title')}>
       <div className="flex flex-col gap-7 pb-2">
         {/* Ambient mix */}
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-muted">
-              집중 사운드 · 여러 개 믹스
+              {t('sounds.mix.heading')}
             </h3>
             {activeCount > 0 && (
               <button
@@ -105,7 +108,7 @@ export function SoundsSheet({ open, onClose }: Props) {
                 onClick={() => apply({})}
                 className="text-xs font-semibold text-muted hover:text-ink"
               >
-                모두 끄기
+                {t('sounds.mix.clearAll')}
               </button>
             )}
           </div>
@@ -132,10 +135,10 @@ export function SoundsSheet({ open, onClose }: Props) {
                       active ? 'text-accent' : 'text-ink',
                     )}
                   >
-                    {n.label}
+                    {t(`sound.${n.id}`)}
                   </span>
                   <span className="text-[11px] leading-tight text-faint">
-                    {n.desc}
+                    {t(`sound.${n.id}.desc`)}
                   </span>
                 </button>
               )
@@ -148,7 +151,7 @@ export function SoundsSheet({ open, onClose }: Props) {
             .map((n) => (
               <div key={n.id} className="flex items-center gap-3 px-1">
                 <span className="w-20 shrink-0 truncate text-xs font-medium text-muted">
-                  {n.emoji} {n.label}
+                  {n.emoji} {t(`sound.${n.id}`)}
                 </span>
                 <Slider
                   value={soundMix[n.id] ?? 0.5}
@@ -162,13 +165,15 @@ export function SoundsSheet({ open, onClose }: Props) {
 
         {/* Saved sound presets */}
         <section className="flex flex-col gap-3">
-          <h3 className="text-sm font-semibold text-muted">프리셋</h3>
+          <h3 className="text-sm font-semibold text-muted">
+            {t('sounds.presets.heading')}
+          </h3>
           <div className="flex items-center gap-2">
             <input
               type="text"
               value={presetName}
               onChange={(e) => setPresetName(e.target.value)}
-              placeholder="프리셋 이름"
+              placeholder={t('sounds.presets.namePlaceholder')}
               className="h-11 min-w-0 flex-1 rounded-2xl border border-line bg-surface-2 px-4 text-[15px] text-ink placeholder:text-faint focus:border-accent focus:outline-none"
             />
             <Button
@@ -176,7 +181,7 @@ export function SoundsSheet({ open, onClose }: Props) {
               onClick={savePreset}
               disabled={!presetName.trim() || activeCount === 0}
             >
-              저장
+              {t('common.save')}
             </Button>
           </div>
           {soundPresets.length > 0 && (
@@ -196,7 +201,9 @@ export function SoundsSheet({ open, onClose }: Props) {
                   <button
                     type="button"
                     onClick={() => deletePreset(idx)}
-                    aria-label={`${preset.name} 삭제`}
+                    aria-label={t('sounds.presets.deleteAria', {
+                      name: preset.name,
+                    })}
                     className="flex h-5 w-5 items-center justify-center rounded-full text-faint hover:bg-line hover:text-ink"
                   >
                     <X size={13} />
@@ -209,26 +216,30 @@ export function SoundsSheet({ open, onClose }: Props) {
 
         {/* Sound timer (auto fade-out) */}
         <section className="flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-muted">사운드 타이머</h3>
+          <h3 className="text-sm font-semibold text-muted">
+            {t('sounds.timer.heading')}
+          </h3>
           <SegmentedControl
             options={AUTO_STOP_OPTIONS}
             value={String(soundAutoStopMin)}
             onChange={(v) => update({ soundAutoStopMin: Number(v) })}
           />
-          <p className="text-xs text-faint">
-            설정한 시간이 지나면 사운드가 서서히 꺼집니다 (집중 세션 중).
-          </p>
+          <p className="text-xs text-faint">{t('sounds.timer.hint')}</p>
         </section>
 
         {/* Ticking */}
         <section className="flex flex-col gap-3">
-          <h3 className="text-sm font-semibold text-muted">초침 소리</h3>
+          <h3 className="text-sm font-semibold text-muted">
+            {t('sounds.ticking.heading')}
+          </h3>
           <div className="flex flex-col gap-4 rounded-3xl bg-surface-2 px-4 py-4">
             <div className="flex items-center justify-between">
               <div className="flex flex-col">
-                <span className="font-semibold text-ink">초침 소리</span>
+                <span className="font-semibold text-ink">
+                  {t('sounds.ticking.label')}
+                </span>
                 <span className="text-xs text-faint">
-                  째깍이는 시계 소리로 리듬을 유지하세요
+                  {t('sounds.ticking.desc')}
                 </span>
               </div>
               <Switch checked={tickingEnabled} onChange={toggleTicking} />

@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core'
 import { LocalNotifications } from '@capacitor/local-notifications'
 import type { Task, TimerMode } from '../types'
 import { mmss } from './format'
+import { t } from '../i18n'
 
 // Native (Capacitor) alarm + controls. On a real device:
 //  - the timer schedules an OS alarm at the segment end (fires in background), and
@@ -20,12 +21,6 @@ function taskNotifId(taskId: string): number {
   return (Math.abs(h) % 2_000_000_000) + 1000
 }
 
-const MODE_KO: Record<TimerMode, string> = {
-  focus: '집중',
-  short: '짧은 휴식',
-  long: '긴 휴식',
-}
-
 export function isNativeRuntime(): boolean {
   return Capacitor.isNativePlatform()
 }
@@ -41,9 +36,12 @@ export async function requestNativeNotifPermission(): Promise<boolean> {
 
 function endMessage(mode: TimerMode): { title: string; body: string } {
   if (mode === 'focus') {
-    return { title: '집중 완료! 🎉', body: '휴식 시간이에요. 잠시 쉬어가세요.' }
+    return {
+      title: t('notif.focusDone.title'),
+      body: t('notif.focusDone.body', { mode: t('mode.short') }),
+    }
   }
-  return { title: '휴식 끝!', body: '다시 집중할 시간이에요.' }
+  return { title: t('notif.breakDone.title'), body: t('notif.breakDone.body') }
 }
 
 /** Schedule the end-of-segment alarm at `atMs` (epoch). Replaces any pending one. */
@@ -104,15 +102,15 @@ export async function initNativeNotificationActions(
         {
           id: 'POMO_RUN',
           actions: [
-            { id: 'pause', title: '일시정지' },
-            { id: 'stop', title: '종료' },
+            { id: 'pause', title: t('notif.action.pause') },
+            { id: 'stop', title: t('notif.action.stop') },
           ],
         },
         {
           id: 'POMO_PAUSED',
           actions: [
-            { id: 'resume', title: '시작' },
-            { id: 'stop', title: '종료' },
+            { id: 'resume', title: t('notif.action.resume') },
+            { id: 'stop', title: t('notif.action.stop') },
           ],
         },
       ],
@@ -149,10 +147,10 @@ async function showControl(
       notifications: [
         {
           id: CONTROL_ID,
-          title: paused
-            ? `${MODE_KO[mode]} · 일시정지됨`
-            : `${MODE_KO[mode]} 진행 중`,
-          body: `${mmss(remainingSec)} 남음`,
+          title: t(paused ? 'notif.paused' : 'notif.running', {
+            mode: t(`mode.${mode}`),
+          }),
+          body: t('notif.remaining', { time: mmss(remainingSec) }),
           actionTypeId: paused ? 'POMO_PAUSED' : 'POMO_RUN',
           ongoing: !paused,
           autoCancel: false,
@@ -202,8 +200,8 @@ export async function scheduleTaskReminder(task: Task): Promise<void> {
         notifications: [
           {
             id,
-            title: `⏰ ${task.title}`,
-            body: '예정된 할 일 알림이에요.',
+            title: t('notif.task.title', { title: task.title }),
+            body: t('notif.task.body'),
             schedule: { at: new Date(task.remindAt), allowWhileIdle: true },
           },
         ],

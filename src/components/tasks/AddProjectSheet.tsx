@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '../Button'
 import { Sheet } from '../Sheet'
 import { cn } from '../../lib/cn'
+import { useT } from '../../i18n'
 import { PROJECT_COLORS } from '../../lib/constants'
 import { createProject } from '../../db/repo'
 
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function AddProjectSheet({ open, onClose }: Props) {
+  const t = useT()
   const [name, setName] = useState('')
   const [color, setColor] = useState<string>(PROJECT_COLORS[0])
 
@@ -29,10 +31,10 @@ export function AddProjectSheet({ open, onClose }: Props) {
   }
 
   return (
-    <Sheet open={open} onClose={onClose} title="프로젝트 추가">
+    <Sheet open={open} onClose={onClose} title={t('tasks.addProject')}>
       <div className="flex flex-col gap-6 pb-2">
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-muted">이름</label>
+          <label className="text-sm font-semibold text-muted">{t('tasks.project.name')}</label>
           <input
             autoFocus
             value={name}
@@ -40,19 +42,19 @@ export function AddProjectSheet({ open, onClose }: Props) {
             onKeyDown={(e) => {
               if (e.key === 'Enter') void save()
             }}
-            placeholder="프로젝트 이름"
+            placeholder={t('tasks.project.namePlaceholder')}
             className="h-12 rounded-2xl bg-surface-2 px-4 text-[15px] text-ink outline-none placeholder:text-faint focus:ring-2 focus:ring-accent"
           />
         </div>
 
         <div className="flex flex-col gap-3">
-          <label className="text-sm font-semibold text-muted">색상</label>
+          <label className="text-sm font-semibold text-muted">{t('tasks.project.color')}</label>
           <div className="flex flex-wrap gap-3">
             {PROJECT_COLORS.map((c) => (
               <button
                 key={c}
                 type="button"
-                aria-label={`색상 ${c}`}
+                aria-label={t('tasks.project.colorLabel', { color: c })}
                 aria-pressed={color === c}
                 onClick={() => setColor(c)}
                 className={cn(
@@ -68,7 +70,7 @@ export function AddProjectSheet({ open, onClose }: Props) {
         </div>
 
         <Button variant="primary" size="lg" full disabled={!name.trim()} onClick={() => void save()}>
-          추가
+          {t('common.add')}
         </Button>
       </div>
     </Sheet>

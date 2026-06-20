@@ -21,7 +21,8 @@ import { rangeFor, daysInRange, startOfDayMs, type StatPeriod } from '../lib/dat
 import { formatDuration } from '../lib/format'
 import { focusInsight } from '../lib/motivation'
 import { cn } from '../lib/cn'
-import { INBOX_NAME, INBOX_COLOR } from '../lib/constants'
+import { INBOX_COLOR } from '../lib/constants'
+import { useT, t as translate } from '../i18n'
 import type { ID, Session, Task } from '../types'
 
 import { Header } from '../components/Header'
@@ -32,18 +33,17 @@ import { BarChart, type Bar } from '../components/stats/BarChart'
 import { Heatmap } from '../components/stats/Heatmap'
 import { Badges } from '../components/stats/Badges'
 
-const PERIOD_OPTIONS: { value: StatPeriod; label: string }[] = [
-  { value: 'day', label: '오늘' },
-  { value: 'week', label: '이번 주' },
-  { value: 'month', label: '이번 달' },
-  { value: 'year', label: '올해' },
-]
+const PERIOD_VALUES: StatPeriod[] = ['day', 'week', 'month', 'year']
 
-const WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일'] // Monday-first
-const MONTH_LABELS = [
-  '1월', '2월', '3월', '4월', '5월', '6월',
-  '7월', '8월', '9월', '10월', '11월', '12월',
-]
+const WEEKDAY_KEYS = [
+  'stats.wd.mon',
+  'stats.wd.tue',
+  'stats.wd.wed',
+  'stats.wd.thu',
+  'stats.wd.fri',
+  'stats.wd.sat',
+  'stats.wd.sun',
+] // Monday-first
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -54,9 +54,19 @@ function mondayIndex(ms: number): number {
 }
 
 export function StatsPage() {
+  const t = useT()
   const [period, setPeriod] = useState<StatPeriod>('day')
   // Stable "now" reference so range + buckets don't drift across renders.
   const [refNow] = useState(() => Date.now())
+
+  const periodOptions = useMemo(
+    () =>
+      PERIOD_VALUES.map((value) => ({
+        value,
+        label: t(`stats.period.${value}`),
+      })),
+    [t],
+  )
 
   const range = useMemo(() => rangeFor(period, refNow), [period, refNow])
 
@@ -105,7 +115,8 @@ export function StatsPage() {
   // --- Bar chart buckets ------------------------------------------------------
   const bars = useMemo<Bar[]>(
     () => buildBars(period, range, focusSessions, refNow),
-    [period, range, focusSessions, refNow],
+    // `t` is a dep so chart labels relocalize on language switch.
+    [period, range, focusSessions, refNow, t],
   )
 
   // --- Project distribution ---------------------------------------------------
@@ -123,18 +134,18 @@ export function StatsPage() {
     }
     const rows = Array.from(byProject.entries()).map(([key, sec]) => {
       if (key === '__inbox__') {
-        return { key, name: INBOX_NAME, color: INBOX_COLOR, sec }
+        return { key, name: t('inbox.name'), color: INBOX_COLOR, sec }
       }
       const meta = projectName.get(key)
       return {
         key,
-        name: meta?.name ?? '삭제된 프로젝트',
+        name: meta?.name ?? t('stats.deletedProject'),
         color: meta?.color ?? INBOX_COLOR,
         sec,
       }
     })
     return rows.sort((a, b) => b.sec - a.sec)
-  }, [focusSessions, projectName])
+  }, [focusSessions, projectName, t])
 
   const distMax = distribution[0]?.sec ?? 0
   const hasAnySession = sessions.length > 0
@@ -187,7 +198,7 @@ export function StatsPage() {
           d.getHours(),
         ).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
         const task = s.taskId != null ? taskById.get(s.taskId) : undefined
-        const title = task?.title ?? '집중'
+        const title = task?.title ?? t('stats.historyFallback')
         const projectId = task?.projectId ?? s.projectId
         const color =
           projectId != null
@@ -195,14 +206,14 @@ export function StatsPage() {
             : INBOX_COLOR
         return { id: s.id, when, title, color, durationSec: s.durationSec }
       })
-  }, [focusSessions, taskById, projectName])
+  }, [focusSessions, taskById, projectName, t])
 
   return (
     <div className="flex flex-col gap-5 px-5 pb-8">
-      <Header title="통계" />
+      <Header title={t('nav.stats')} />
 
       <SegmentedControl
-        options={PERIOD_OPTIONS}
+        options={periodOptions}
         value={period}
         onChange={setPeriod}
         className="animate-fade-in"
@@ -214,9 +225,9 @@ export function StatsPage() {
           <Clock size={22} strokeWidth={2.2} />
         </span>
         <div className="flex flex-col gap-0.5">
-          <span className="text-xs font-medium text-muted">전체 누적 집중</span>
+          <span className="text-xs font-medium text-muted">{t('stats.totalFocus')}</span>
           <span className="nums text-2xl font-bold leading-none text-ink">
-            {totalFocusSec > 0 ? formatDuration(totalFocusSec) : '0분'}
+            {totalFocusSec > 0 ? formatDuration(totalFocusSec) : t('stats.zeroMin')}
           </span>
         </div>
       </Card>
@@ -225,54 +236,58 @@ export function StatsPage() {
       <div className="grid grid-cols-2 gap-3">
         <SummaryCard
           icon={<Clock size={18} strokeWidth={2.2} />}
-          label="집중 시간"
-          value={focusSec > 0 ? formatDuration(focusSec) : '0분'}
+          label={t('stats.focusTime')}
+          value={focusSec > 0 ? formatDuration(focusSec) : t('stats.zeroMin')}
         />
         <SummaryCard
           icon={<Flame size={18} strokeWidth={2.2} />}
-          label="완료 뽀모도로"
-          value={`${completedPomos}회`}
+          label={t('stats.completedPomos')}
+          value={t('stats.count', { n: completedPomos })}
         />
         <SummaryCard
           icon={<CheckCircle2 size={18} strokeWidth={2.2} />}
-          label="완료한 일"
-          value={`${completedTasks}개`}
+          label={t('stats.completedTasks')}
+          value={t('stats.tasksCount', { n: completedTasks })}
         />
         <SummaryCard
           icon={<Target size={18} strokeWidth={2.2} />}
-          label="연속"
-          value={`${streak}일`}
+          label={t('stats.streak')}
+          value={t('stats.days', { n: streak })}
         />
       </div>
 
       {/* Achievements */}
       <Card className="flex flex-col gap-4 p-5 animate-fade-in">
-        <SectionTitle>성취</SectionTitle>
+        <SectionTitle>{t('stats.achievements')}</SectionTitle>
         <Badges sessions={allSessions} tasks={allTasks} />
       </Card>
 
       {/* Weekly insight */}
       {insight && (
         <Card className="flex flex-col gap-3 p-5 animate-fade-in">
-          <SectionTitle>인사이트</SectionTitle>
+          <SectionTitle>{t('stats.insight')}</SectionTitle>
           <div className="flex flex-col gap-2">
             <p className="text-sm font-medium text-ink">
-              가장 집중한 요일 ·{' '}
+              {t('stats.bestWeekday')}{' '}
               <span className="font-semibold">{insight.bestWeekday}</span>{' '}
-              <span className="nums text-muted">({insight.bestWeekdayMin}분)</span>
+              <span className="nums text-muted">
+                ({t('stats.minutes', { n: insight.bestWeekdayMin })})
+              </span>
             </p>
             <p className="text-sm font-medium text-ink">
-              가장 집중한 시간대 ·{' '}
+              {t('stats.bestHour')}{' '}
               <span className="font-semibold">{insight.bestHourLabel}</span>{' '}
-              <span className="nums text-muted">({insight.bestHourMin}분)</span>
+              <span className="nums text-muted">
+                ({t('stats.minutes', { n: insight.bestHourMin })})
+              </span>
             </p>
           </div>
         </Card>
       )}
 
-      {/* Focus heatmap (잔디) — all-time, last 17 weeks */}
+      {/* Focus heatmap — all-time, last 17 weeks */}
       <Card className="flex flex-col gap-4 p-5 animate-fade-in">
-        <SectionTitle>집중 잔디</SectionTitle>
+        <SectionTitle>{t('stats.heatmap')}</SectionTitle>
         <Heatmap days={heatmapDays} />
       </Card>
 
@@ -280,24 +295,24 @@ export function StatsPage() {
         <Card className="animate-fade-in">
           <EmptyState
             icon={<BarChart3 size={40} strokeWidth={1.5} />}
-            title="아직 기록이 없어요"
-            hint="이 기간에 완료한 집중 세션이 없습니다. 타이머를 시작해 첫 기록을 남겨보세요."
+            title={t('stats.empty.title')}
+            hint={t('stats.empty.hint')}
           />
         </Card>
       ) : (
         <>
           {/* Bar chart */}
           <Card className="flex flex-col gap-4 p-5 animate-fade-in">
-            <SectionTitle>집중 추이</SectionTitle>
-            <BarChart bars={bars} unit="분" />
+            <SectionTitle>{t('stats.trend')}</SectionTitle>
+            <BarChart bars={bars} unit={t('stats.unit.min')} />
           </Card>
 
           {/* Project distribution */}
           <Card className="flex flex-col gap-4 p-5 animate-fade-in">
-            <SectionTitle>프로젝트별 집중</SectionTitle>
+            <SectionTitle>{t('stats.byProject')}</SectionTitle>
             {distribution.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted">
-                집중 기록이 없어요.
+                {t('stats.noFocus')}
               </p>
             ) : (
               <div className="flex flex-col gap-3">
@@ -332,10 +347,10 @@ export function StatsPage() {
 
           {/* History */}
           <Card className="flex flex-col gap-4 p-5 animate-fade-in">
-            <SectionTitle>기록</SectionTitle>
+            <SectionTitle>{t('stats.history')}</SectionTitle>
             {historyRows.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted">
-                기록이 없어요.
+                {t('stats.noHistory')}
               </p>
             ) : (
               <div className="flex flex-col">
@@ -437,7 +452,7 @@ function buildBars(
       }
       return buckets.map((value, h) => ({
         value,
-        label: h % 6 === 0 ? `${h}시` : '',
+        label: h % 6 === 0 ? translate('stats.hourLabel', { h }) : '',
         active: isToday && h === currentHour,
       }))
     }
@@ -451,9 +466,10 @@ function buildBars(
           dayStart,
           dayStart + DAY_MS,
         )
+        const wdKey = WEEKDAY_KEYS[mondayIndex(dayStart)]
         return {
           value,
-          label: WEEKDAY_LABELS[mondayIndex(dayStart)] ?? '',
+          label: wdKey ? translate(wdKey) : '',
           active: dayStart === todayStart,
         }
       })
@@ -491,7 +507,7 @@ function buildBars(
       const currentMonth = getMonth(refNow)
       return buckets.map((value, m) => ({
         value,
-        label: m % 2 === 0 ? MONTH_LABELS[m] : '',
+        label: m % 2 === 0 ? translate(`stats.mo.${m + 1}`) : '',
         active: m === currentMonth,
       }))
     }

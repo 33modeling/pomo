@@ -1,5 +1,6 @@
 import { db } from './db'
 import { genId } from '../lib/id'
+import { t } from '../i18n'
 import { addDays, startOfDayMs } from '../lib/dates'
 import {
   cancelTaskReminder,
@@ -34,7 +35,7 @@ export async function createProject(
   const count = await db.projects.count()
   const project: Project = {
     id: genId(),
-    name: name.trim() || '새 프로젝트',
+    name: name.trim() || t('project.untitled'),
     color,
     order: count,
     archived: false,

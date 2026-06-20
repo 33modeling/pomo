@@ -1,11 +1,16 @@
 import { useMemo } from 'react'
 
-const WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일'] // Monday-first
+import { useT } from '../../i18n'
 
-const MONTH_NAMES = [
-  '1월', '2월', '3월', '4월', '5월', '6월',
-  '7월', '8월', '9월', '10월', '11월', '12월',
-]
+const WEEKDAY_KEYS = [
+  'stats.wd.mon',
+  'stats.wd.tue',
+  'stats.wd.wed',
+  'stats.wd.thu',
+  'stats.wd.fri',
+  'stats.wd.sat',
+  'stats.wd.sun',
+] // Monday-first
 
 interface DayDatum {
   /** Start-of-day epoch ms. */
@@ -33,11 +38,12 @@ function opacityFor(minutes: number): number {
 }
 
 /**
- * GitHub-style focus heatmap: 7 rows (월~일, Monday top) × week columns.
+ * GitHub-style focus heatmap: 7 rows (Mon~Sun, Monday top) × week columns.
  * Cells are coloured by daily focus minutes; leading blanks pad the first
  * column to the correct weekday. Horizontally scrollable.
  */
 export function Heatmap({ days }: { days: DayDatum[] }) {
+  const t = useT()
   const columns = useMemo<(Cell | null)[][]>(() => {
     if (days.length === 0) return []
     // Pad leading blanks so the first real day sits on its weekday row.
@@ -56,21 +62,21 @@ export function Heatmap({ days }: { days: DayDatum[] }) {
   }, [days])
 
   if (columns.length === 0) {
-    return <p className="py-4 text-center text-sm text-muted">기록이 없어요.</p>
+    return <p className="py-4 text-center text-sm text-muted">{t('stats.noHistory')}</p>
   }
 
   return (
     <div className="flex flex-col gap-2">
       <div className="no-scrollbar overflow-x-auto">
         <div className="flex gap-[3px]">
-          {/* Weekday labels (월~일) */}
+          {/* Weekday labels (Mon~Sun) */}
           <div className="mr-1 flex flex-col gap-[3px]">
-            {WEEKDAY_LABELS.map((label, i) => (
+            {WEEKDAY_KEYS.map((key, i) => (
               <div
-                key={label}
+                key={key}
                 className="flex h-3 items-center text-[9px] leading-none text-faint"
               >
-                {i % 2 === 0 ? label : ''}
+                {i % 2 === 0 ? t(key) : ''}
               </div>
             ))}
           </div>
@@ -82,9 +88,11 @@ export function Heatmap({ days }: { days: DayDatum[] }) {
                 }
                 const opacity = opacityFor(cell.minutes)
                 const d = new Date(cell.day)
-                const title = `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}일 · ${Math.round(
-                  cell.minutes,
-                )}분`
+                const title = t('stats.heatmap.tooltip', {
+                  month: t(`stats.mo.${d.getMonth() + 1}`),
+                  day: d.getDate(),
+                  minutes: Math.round(cell.minutes),
+                })
                 return (
                   <div
                     key={ri}
@@ -105,9 +113,9 @@ export function Heatmap({ days }: { days: DayDatum[] }) {
         </div>
       </div>
 
-      {/* Legend: 적음 → 많음 */}
+      {/* Legend: less → more */}
       <div className="flex items-center justify-end gap-1.5 text-[10px] text-faint">
-        <span>적음</span>
+        <span>{t('stats.heatmap.less')}</span>
         <div className="h-3 w-3 rounded-[3px] bg-surface-2" />
         {[0.25, 0.5, 0.75, 1].map((o) => (
           <div
@@ -116,7 +124,7 @@ export function Heatmap({ days }: { days: DayDatum[] }) {
             style={{ opacity: o }}
           />
         ))}
-        <span>많음</span>
+        <span>{t('stats.heatmap.more')}</span>
       </div>
     </div>
   )

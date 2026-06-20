@@ -3,17 +3,12 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { IconButton } from '../IconButton'
 import { cn } from '../../lib/cn'
+import { useT } from '../../i18n'
 import { PRIORITY_META } from '../../lib/constants'
 import { isToday, isTomorrow } from '../../lib/dates'
 import { deleteTask, toggleTaskComplete } from '../../db/repo'
 import { useTimerStore } from '../../store/timerStore'
-import type { Project, RepeatRule, Task } from '../../types'
-
-const REPEAT_LABEL: Record<Exclude<RepeatRule, 'none'>, string> = {
-  daily: '매일',
-  weekdays: '평일',
-  weekly: '매주',
-}
+import type { Project, Task } from '../../types'
 
 interface Props {
   task: Task
@@ -23,14 +18,15 @@ interface Props {
   onOpen: (task: Task) => void
 }
 
-function dueLabel(due: number): string {
-  if (isToday(due)) return '오늘'
-  if (isTomorrow(due)) return '내일'
+function dueLabel(due: number, t: ReturnType<typeof useT>): string {
+  if (isToday(due)) return t('tasks.due.today')
+  if (isTomorrow(due)) return t('tasks.due.tomorrow')
   const d = new Date(due)
-  return `${d.getMonth() + 1}월 ${d.getDate()}일`
+  return t('tasks.dueLabel', { m: d.getMonth() + 1, d: d.getDate() })
 }
 
 export function TaskItem({ task, project, showProject, onOpen }: Props) {
+  const t = useT()
   const navigate = useNavigate()
   const prio = PRIORITY_META[task.priority]
   const overdue =
@@ -139,7 +135,7 @@ export function TaskItem({ task, project, showProject, onOpen }: Props) {
       <button
         type="button"
         onClick={toggle}
-        aria-label={task.completed ? '완료 취소' : '완료'}
+        aria-label={task.completed ? t('tasks.action.uncomplete') : t('tasks.action.complete')}
         className={cn(
           'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition',
           task.completed
@@ -175,7 +171,7 @@ export function TaskItem({ task, project, showProject, onOpen }: Props) {
             {task.priority !== 'none' && (
               <span className="flex items-center gap-1" style={{ color: prio.color }}>
                 <Flag size={12} fill={prio.color} strokeWidth={0} />
-                {prio.label}
+                {t(`priority.${task.priority}`)}
               </span>
             )}
 
@@ -197,14 +193,14 @@ export function TaskItem({ task, project, showProject, onOpen }: Props) {
                       : 'bg-surface-2 text-muted',
                 )}
               >
-                {dueLabel(task.dueDate)}
+                {dueLabel(task.dueDate, t)}
               </span>
             )}
 
             {task.repeat !== 'none' && (
               <span className="flex items-center gap-1 text-muted">
                 <Repeat size={12} />
-                {REPEAT_LABEL[task.repeat]}
+                {t(`repeat.${task.repeat}`)}
               </span>
             )}
 
@@ -213,7 +209,7 @@ export function TaskItem({ task, project, showProject, onOpen }: Props) {
               task.remindAt > Date.now() && (
                 <span className="flex items-center gap-1 text-muted">
                   <Bell size={12} />
-                  알림
+                  {t('tasks.remind.badge')}
                 </span>
               )}
           </div>
@@ -222,7 +218,7 @@ export function TaskItem({ task, project, showProject, onOpen }: Props) {
 
       {!task.completed && (
         <IconButton
-          label="집중 시작"
+          label={t('tasks.action.startFocus')}
           onClick={startFocus}
           className="-mr-1.5 mt-0.5 shrink-0 text-faint hover:bg-accent/10 hover:text-accent"
         >

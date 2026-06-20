@@ -5,7 +5,8 @@ import { Sheet } from '../Sheet'
 import { Stepper } from '../Stepper'
 import { Switch } from '../Switch'
 import { cn } from '../../lib/cn'
-import { INBOX_COLOR, INBOX_NAME } from '../../lib/constants'
+import { useT } from '../../i18n'
+import { INBOX_COLOR } from '../../lib/constants'
 import { startOfDayMs, addDays } from '../../lib/dates'
 import { createTask } from '../../db/repo'
 import type { ID, Priority, Project, RepeatRule } from '../../types'
@@ -18,19 +19,8 @@ interface Props {
   defaultProjectId: ID | null
 }
 
-const PRIORITY_OPTIONS: { value: Priority; label: string }[] = [
-  { value: 'none', label: '없음' },
-  { value: 'low', label: '낮음' },
-  { value: 'medium', label: '보통' },
-  { value: 'high', label: '높음' },
-]
-
-const REPEAT_OPTIONS: { value: RepeatRule; label: string }[] = [
-  { value: 'none', label: '없음' },
-  { value: 'daily', label: '매일' },
-  { value: 'weekdays', label: '평일' },
-  { value: 'weekly', label: '매주' },
-]
+const PRIORITY_VALUES: Priority[] = ['none', 'low', 'medium', 'high']
+const REPEAT_VALUES: RepeatRule[] = ['none', 'daily', 'weekdays', 'weekly']
 
 function toInputDate(ms: number): string {
   const d = new Date(ms)
@@ -40,6 +30,9 @@ function toInputDate(ms: number): string {
 }
 
 export function AddTaskSheet({ open, onClose, projects, defaultProjectId }: Props) {
+  const t = useT()
+  const priorityOptions = PRIORITY_VALUES.map((value) => ({ value, label: t(`priority.${value}`) }))
+  const repeatOptions = REPEAT_VALUES.map((value) => ({ value, label: t(`repeat.${value}`) }))
   const [title, setTitle] = useState('')
   const [projectId, setProjectId] = useState<ID | null>(defaultProjectId)
   const [estimate, setEstimate] = useState(1)
@@ -90,7 +83,7 @@ export function AddTaskSheet({ open, onClose, projects, defaultProjectId }: Prop
   }
 
   return (
-    <Sheet open={open} onClose={onClose} title="할 일 추가">
+    <Sheet open={open} onClose={onClose} title={t('tasks.add')}>
       <div className="flex flex-col gap-6 pb-2">
         <input
           autoFocus
@@ -99,14 +92,14 @@ export function AddTaskSheet({ open, onClose, projects, defaultProjectId }: Prop
           onKeyDown={(e) => {
             if (e.key === 'Enter') void save()
           }}
-          placeholder="무엇을 할까요?"
+          placeholder={t('tasks.titlePlaceholder')}
           className="h-12 rounded-2xl bg-surface-2 px-4 text-[15px] text-ink outline-none placeholder:text-faint focus:ring-2 focus:ring-accent"
         />
 
-        <Field label="프로젝트">
+        <Field label={t('tasks.field.project')}>
           <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 py-0.5">
             <ProjectChip
-              name={INBOX_NAME}
+              name={t('inbox.name')}
               color={INBOX_COLOR}
               selected={projectId === null}
               onClick={() => setProjectId(null)}
@@ -123,19 +116,19 @@ export function AddTaskSheet({ open, onClose, projects, defaultProjectId }: Prop
           </div>
         </Field>
 
-        <Field label="예상 뽀모도로">
+        <Field label={t('tasks.field.estimate')}>
           <Stepper value={estimate} onChange={setEstimate} min={1} max={20} suffix=" 🍅" />
         </Field>
 
-        <Field label="우선순위">
-          <SegmentedControl options={PRIORITY_OPTIONS} value={priority} onChange={setPriority} />
+        <Field label={t('tasks.field.priority')}>
+          <SegmentedControl options={priorityOptions} value={priority} onChange={setPriority} />
         </Field>
 
-        <Field label="마감일">
+        <Field label={t('tasks.field.due')}>
           <div className="flex flex-wrap items-center gap-2">
-            <DueChip label="없음" selected={due === null} onClick={() => setDue(null)} />
-            <DueChip label="오늘" selected={due === today} onClick={() => setDue(today)} />
-            <DueChip label="내일" selected={due === tomorrow} onClick={() => setDue(tomorrow)} />
+            <DueChip label={t('tasks.due.none')} selected={due === null} onClick={() => setDue(null)} />
+            <DueChip label={t('tasks.due.today')} selected={due === today} onClick={() => setDue(today)} />
+            <DueChip label={t('tasks.due.tomorrow')} selected={due === tomorrow} onClick={() => setDue(tomorrow)} />
             <input
               type="date"
               value={due != null ? toInputDate(due) : ''}
@@ -147,9 +140,9 @@ export function AddTaskSheet({ open, onClose, projects, defaultProjectId }: Prop
           </div>
         </Field>
 
-        <Field label="알림">
+        <Field label={t('tasks.field.remind')}>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted">알림</span>
+            <span className="text-sm text-muted">{t('tasks.field.remind')}</span>
             <Switch checked={remindOn} onChange={setRemindOn} />
           </div>
           {remindOn && (
@@ -160,27 +153,27 @@ export function AddTaskSheet({ open, onClose, projects, defaultProjectId }: Prop
                 onChange={(e) => setRemindTime(e.target.value || '09:00')}
                 className="h-9 rounded-xl bg-surface-2 px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-accent"
               />
-              <span className="text-xs text-faint">기기 앱(APK)에서 알림이 울립니다</span>
+              <span className="text-xs text-faint">{t('tasks.remind.hint')}</span>
             </div>
           )}
         </Field>
 
-        <Field label="반복">
-          <SegmentedControl options={REPEAT_OPTIONS} value={repeat} onChange={setRepeat} />
+        <Field label={t('tasks.field.repeat')}>
+          <SegmentedControl options={repeatOptions} value={repeat} onChange={setRepeat} />
         </Field>
 
-        <Field label="메모">
+        <Field label={t('tasks.field.note')}>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="메모 (선택)"
+            placeholder={t('tasks.notePlaceholder')}
             rows={3}
             className="resize-none rounded-2xl bg-surface-2 px-4 py-3 text-[15px] text-ink outline-none placeholder:text-faint focus:ring-2 focus:ring-accent"
           />
         </Field>
 
         <Button variant="primary" size="lg" full disabled={!title.trim()} onClick={() => void save()}>
-          추가
+          {t('common.add')}
         </Button>
       </div>
     </Sheet>

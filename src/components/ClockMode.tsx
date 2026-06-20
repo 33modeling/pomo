@@ -5,8 +5,9 @@ import { cn } from '../lib/cn'
 import { mmss } from '../lib/format'
 import { releaseWakeLock, requestWakeLock } from '../lib/wakeLock'
 import { db } from '../db/db'
-import { MODE_LABEL, useTimerStore } from '../store/timerStore'
+import { useTimerStore } from '../store/timerStore'
 import { useUiStore } from '../store/uiStore'
+import { useT } from '../i18n'
 
 /**
  * Full-screen "desk clock" mode: a large, glanceable countdown for when you
@@ -14,6 +15,7 @@ import { useUiStore } from '../store/uiStore'
  * corner; the focus countdown is the dominant element. Controls auto-hide.
  */
 export function ClockMode() {
+  const t = useT()
   const open = useUiStore((s) => s.clockOpen)
   const close = useUiStore((s) => s.closeClock)
 
@@ -93,7 +95,7 @@ export function ClockMode() {
       >
         <button
           type="button"
-          aria-label="닫기"
+          aria-label={t('common.close')}
           onClick={(e) => {
             e.stopPropagation()
             close()
@@ -110,7 +112,7 @@ export function ClockMode() {
       {/* Center: dominant countdown */}
       <div className="flex flex-col items-center px-6">
         <span className="text-xs font-bold uppercase tracking-[0.35em] text-accent sm:text-sm">
-          {MODE_LABEL[mode]}
+          {t(`mode.${mode}`)}
         </span>
         <div
           className="nums mt-3 font-bold leading-none tracking-tight text-ink"
@@ -136,7 +138,7 @@ export function ClockMode() {
         {status !== 'idle' && (
           <button
             type="button"
-            aria-label="초기화"
+            aria-label={t('timer.reset')}
             onClick={reset}
             className="flex h-14 w-14 items-center justify-center rounded-full bg-surface text-muted shadow-card transition active:scale-95"
           >
@@ -145,7 +147,7 @@ export function ClockMode() {
         )}
         <button
           type="button"
-          aria-label={running ? '일시정지' : '시작'}
+          aria-label={running ? t('timer.pause') : t('timer.start')}
           onClick={() => {
             toggle()
             reveal()
@@ -157,7 +159,7 @@ export function ClockMode() {
         {status !== 'idle' && (
           <button
             type="button"
-            aria-label="건너뛰기"
+            aria-label={t('timer.skip')}
             onClick={skip}
             className="flex h-14 w-14 items-center justify-center rounded-full bg-surface text-muted shadow-card transition active:scale-95"
           >

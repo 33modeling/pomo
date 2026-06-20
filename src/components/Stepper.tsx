@@ -1,4 +1,5 @@
 import { Minus, Plus } from 'lucide-react'
+import { useT } from '../i18n'
 
 interface Props {
   value: number
@@ -17,12 +18,13 @@ export function Stepper({
   step = 1,
   suffix,
 }: Props) {
+  const t = useT()
   const clamp = (v: number) => onChange(Math.min(max, Math.max(min, v)))
   return (
     <div className="flex items-center gap-3">
       <button
         type="button"
-        aria-label="감소"
+        aria-label={t('common.decrease')}
         onClick={() => clamp(value - step)}
         disabled={value <= min}
         className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-ink transition active:bg-line disabled:opacity-40"
@@ -35,7 +37,7 @@ export function Stepper({
       </span>
       <button
         type="button"
-        aria-label="증가"
+        aria-label={t('common.increase')}
         onClick={() => clamp(value + step)}
         disabled={value >= max}
         className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-ink transition active:bg-line disabled:opacity-40"

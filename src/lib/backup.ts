@@ -1,6 +1,7 @@
 import { db } from '../db/db'
 import { useSettingsStore } from '../store/settingsStore'
 import { useThemeStore } from '../store/themeStore'
+import { t } from '../i18n'
 import type {
   Project,
   Session,
@@ -8,14 +9,7 @@ import type {
   Subtask,
   Task,
   Theme,
-  TimerMode,
 } from '../types'
-
-const MODE_KO: Record<TimerMode, string> = {
-  focus: '집중',
-  short: '짧은 휴식',
-  long: '긴 휴식',
-}
 
 function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
@@ -109,10 +103,10 @@ export async function importFromFile(file: File): Promise<ImportResult> {
   try {
     parsed = JSON.parse(await file.text()) as BackupFile
   } catch {
-    throw new Error('파일을 읽을 수 없습니다 (JSON 형식 오류).')
+    throw new Error(t('backup.errJson'))
   }
   if (parsed.app !== 'pomo' || !parsed.data) {
-    throw new Error('올바른 Pomo 백업 파일이 아닙니다.')
+    throw new Error(t('backup.errInvalid'))
   }
   const {
     projects = [],
@@ -162,7 +156,15 @@ export async function exportSessionsCsv(): Promise<void> {
   const projName = new Map(projects.map((p) => [p.id, p.name]))
   sessions.sort((a, b) => a.startedAt - b.startedAt)
 
-  const header = ['날짜', '시작시각', '종류', '집중(분)', '완료', '작업', '프로젝트']
+  const header = [
+    t('csv.date'),
+    t('csv.time'),
+    t('csv.type'),
+    t('csv.focusMin'),
+    t('csv.done'),
+    t('csv.task'),
+    t('csv.project'),
+  ]
   const lines = [header.join(',')]
   for (const s of sessions) {
     const d = new Date(s.startedAt)
@@ -171,7 +173,7 @@ export async function exportSessionsCsv(): Promise<void> {
     const row = [
       date,
       time,
-      MODE_KO[s.mode],
+      t(`mode.${s.mode}`),
       (s.durationSec / 60).toFixed(1),
       s.completed ? 'O' : '',
       s.taskId ? (taskName.get(s.taskId) ?? '') : '',

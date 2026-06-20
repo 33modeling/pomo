@@ -9,7 +9,8 @@ import { AddTaskSheet } from '../components/tasks/AddTaskSheet'
 import { TaskDetailSheet } from '../components/tasks/TaskDetailSheet'
 import { TaskItem } from '../components/tasks/TaskItem'
 import { cn } from '../lib/cn'
-import { INBOX_COLOR, INBOX_NAME, PRIORITY_META } from '../lib/constants'
+import { useT } from '../i18n'
+import { INBOX_COLOR, PRIORITY_META } from '../lib/constants'
 import { endOfDayMs } from '../lib/dates'
 import { listProjects } from '../db/repo'
 import { db } from '../db/db'
@@ -28,6 +29,7 @@ function sortTasks(a: Task, b: Task): number {
 }
 
 export function TasksPage() {
+  const t = useT()
   const projects = useLiveQuery(() => listProjects()) ?? []
   const tasks = useLiveQuery(() => db.tasks.toArray()) ?? []
 
@@ -89,9 +91,9 @@ export function TasksPage() {
   return (
     <div className="pb-8">
       <Header
-        title="할 일"
+        title={t('tasks.title')}
         right={
-          <IconButton label="프로젝트 추가" onClick={() => setAddProjectOpen(true)}>
+          <IconButton label={t('tasks.addProject')} onClick={() => setAddProjectOpen(true)}>
             <FolderPlus size={20} />
           </IconButton>
         }
@@ -99,9 +101,10 @@ export function TasksPage() {
 
       {/* Project filter chips */}
       <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pb-1 pt-1">
-        <FilterChip label="전체" active={filter === 'all'} onClick={() => setFilter('all')} />
+        <FilterChip label={t('tasks.filter.all')} active={filter === 'all'} onClick={() => setFilter('all')} />
         <FilterChip
-          label={INBOX_NAME}
+          label={t('inbox.name')}
+          isInbox
           color={INBOX_COLOR}
           active={filter === 'inbox'}
           onClick={() => setFilter('inbox')}
@@ -122,20 +125,20 @@ export function TasksPage() {
         {isEmpty ? (
           <EmptyState
             icon={<ListTodo size={40} strokeWidth={1.5} />}
-            title="할 일이 없어요"
-            hint="아래 버튼을 눌러 첫 할 일을 추가해 보세요."
+            title={t('tasks.empty.title')}
+            hint={t('tasks.empty.hint')}
           />
         ) : filter === 'all' ? (
           <>
-            <Section title="오늘" tasks={groups.today} render={renderRow} />
-            <Section title="예정" tasks={groups.upcoming} render={renderRow} />
-            <Section title="언젠가" tasks={groups.someday} render={renderRow} />
+            <Section title={t('tasks.group.today')} tasks={groups.today} render={renderRow} />
+            <Section title={t('tasks.group.upcoming')} tasks={groups.upcoming} render={renderRow} />
+            <Section title={t('tasks.group.someday')} tasks={groups.someday} render={renderRow} />
           </>
         ) : (
           <div className="flex flex-col gap-2">
             {sortedIncomplete.length === 0 ? (
               <p className="px-1 py-6 text-center text-sm text-faint">
-                남은 할 일이 없어요.
+                {t('tasks.empty.filtered')}
               </p>
             ) : (
               sortedIncomplete.map(renderRow)
@@ -155,7 +158,7 @@ export function TasksPage() {
                 size={16}
                 className={cn('transition-transform', showDone ? 'rotate-0' : '-rotate-90')}
               />
-              완료됨 {completed.length}
+              {t('tasks.group.done', { count: completed.length })}
             </button>
             {showDone && (
               <div className="flex flex-col gap-2 animate-fade-in">
@@ -169,7 +172,7 @@ export function TasksPage() {
       {/* Floating add button */}
       <button
         type="button"
-        aria-label="할 일 추가"
+        aria-label={t('tasks.add')}
         onClick={() => setAddTaskOpen(true)}
         className="fixed bottom-24 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-on-accent shadow-pop transition active:scale-95"
       >
@@ -218,11 +221,13 @@ function FilterChip({
   color,
   active,
   onClick,
+  isInbox,
 }: {
   label: string
   color?: string
   active: boolean
   onClick: () => void
+  isInbox?: boolean
 }) {
   return (
     <button
@@ -237,7 +242,7 @@ function FilterChip({
       )}
     >
       {color ? (
-        label === INBOX_NAME ? (
+        isInbox ? (
           <Inbox size={14} className="shrink-0" />
         ) : (
           <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />

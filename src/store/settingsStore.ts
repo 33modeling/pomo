@@ -28,10 +28,11 @@ export const DEFAULT_SETTINGS: Settings = {
 
   clockOnStart: false,
 
+  // Built-in preset names are i18n keys (resolved with t(); custom names pass through).
   timerPresets: [
-    { name: '클래식', focusMin: 25, shortMin: 5, longMin: 15, longBreakInterval: 4 },
-    { name: '길게 집중', focusMin: 50, shortMin: 10, longMin: 20, longBreakInterval: 3 },
-    { name: '딥 워크', focusMin: 90, shortMin: 20, longMin: 30, longBreakInterval: 2 },
+    { name: 'preset.classic', focusMin: 25, shortMin: 5, longMin: 15, longBreakInterval: 4 },
+    { name: 'preset.longFocus', focusMin: 50, shortMin: 10, longMin: 20, longBreakInterval: 3 },
+    { name: 'preset.deepWork', focusMin: 90, shortMin: 20, longMin: 30, longBreakInterval: 2 },
   ],
   soundPresets: [],
 }
@@ -50,7 +51,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'pomo-settings',
-      version: 2,
+      version: 3,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         if (version < 2) {
@@ -64,6 +65,20 @@ export const useSettingsStore = create<SettingsState>()(
           s.soundAutoStopMin = 0
           delete s.whiteNoise
           delete s.whiteNoiseVolume
+        }
+        if (version < 3) {
+          // Built-in preset names became i18n keys.
+          const map: Record<string, string> = {
+            클래식: 'preset.classic',
+            '길게 집중': 'preset.longFocus',
+            '딥 워크': 'preset.deepWork',
+          }
+          if (Array.isArray(s.timerPresets)) {
+            s.timerPresets = (s.timerPresets as { name: string }[]).map((p) => ({
+              ...p,
+              name: map[p.name] ?? p.name,
+            }))
+          }
         }
         return s as unknown as SettingsState
       },

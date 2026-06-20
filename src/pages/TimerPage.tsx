@@ -24,19 +24,22 @@ import { db } from '../db/db'
 import { focusCountToday } from '../db/repo'
 import { mmss } from '../lib/format'
 import { cn } from '../lib/cn'
-import { MODE_LABEL, useTimerStore } from '../store/timerStore'
+import { useTimerStore } from '../store/timerStore'
 import { useSettingsStore } from '../store/settingsStore'
 import { useUiStore } from '../store/uiStore'
 import type { TimerMode } from '../types'
+import { useT } from '../i18n'
 import { SoundsSheet } from './SoundsSheet'
 
-const MODE_OPTIONS: { value: TimerMode; label: string }[] = [
-  { value: 'focus', label: '집중' },
-  { value: 'short', label: '짧은 휴식' },
-  { value: 'long', label: '긴 휴식' },
-]
+const MODE_VALUES: TimerMode[] = ['focus', 'short', 'long']
 
 export function TimerPage() {
+  const t = useT()
+  const modeOptions = MODE_VALUES.map((value) => ({
+    value,
+    label: t(`mode.${value}`),
+  }))
+
   const [soundsOpen, setSoundsOpen] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [celebrate, setCelebrate] = useState(false)
@@ -108,10 +111,10 @@ export function TimerPage() {
         title="Pomo"
         right={
           <>
-            <IconButton label="탁상시계" onClick={openClock}>
+            <IconButton label={t('timer.clock')} onClick={openClock}>
               <Maximize2 size={20} strokeWidth={2} />
             </IconButton>
-            <IconButton label="사운드" onClick={() => setSoundsOpen(true)}>
+            <IconButton label={t('timer.sounds')} onClick={() => setSoundsOpen(true)}>
               <Music2 size={20} strokeWidth={2} />
             </IconButton>
           </>
@@ -120,7 +123,7 @@ export function TimerPage() {
 
       <div className="px-5">
         <SegmentedControl
-          options={MODE_OPTIONS}
+          options={modeOptions}
           value={mode}
           onChange={handleMode}
           className={cn('mt-1', running && 'pointer-events-none opacity-50')}
@@ -153,7 +156,7 @@ export function TimerPage() {
                       : 'bg-surface-2 text-muted hover:text-ink',
                   )}
                 >
-                  {preset.name}
+                  {t(preset.name)}
                 </button>
               )
             })}
@@ -172,9 +175,9 @@ export function TimerPage() {
             {mmss(remainingSec)}
           </span>
           <span className="mt-3 text-sm font-medium text-muted">
-            {MODE_LABEL[mode]}
+            {t(`mode.${mode}`)}
           </span>
-          <div className="mt-4 flex items-center gap-1.5" aria-label="라운드 표시">
+          <div className="mt-4 flex items-center gap-1.5" aria-label={t('timer.rounds')}>
             {Array.from({ length: Math.max(1, longBreakInterval) }).map(
               (_, i) => (
                 <span
@@ -203,7 +206,7 @@ export function TimerPage() {
               </p>
             </div>
             <IconButton
-              label="작업 해제"
+              label={t('timer.clearTask')}
               onClick={() => selectTask(null)}
               className="shrink-0"
             >
@@ -217,7 +220,7 @@ export function TimerPage() {
             className="mx-auto flex items-center gap-2 rounded-full bg-surface-2 px-4 py-2 text-sm font-medium text-muted transition hover:text-ink active:bg-line"
           >
             <ListTodo size={16} strokeWidth={2} />
-            작업 선택
+            {t('timer.selectTask')}
           </button>
         )}
       </div>
@@ -226,7 +229,7 @@ export function TimerPage() {
       <div className="mt-8 flex items-center justify-center gap-5">
         {status !== 'idle' && (
           <IconButton
-            label="초기화"
+            label={t('timer.reset')}
             onClick={reset}
             className="h-12 w-12 bg-surface-2 text-muted hover:text-ink"
           >
@@ -243,19 +246,19 @@ export function TimerPage() {
           {running ? (
             <>
               <Pause size={20} strokeWidth={2.25} />
-              일시정지
+              {t('timer.pause')}
             </>
           ) : (
             <>
               <Play size={20} strokeWidth={2.25} />
-              시작
+              {t('timer.start')}
             </>
           )}
         </Button>
 
         {status !== 'idle' && (
           <IconButton
-            label="건너뛰기"
+            label={t('timer.skip')}
             onClick={skip}
             className="h-12 w-12 bg-surface-2 text-muted hover:text-ink"
           >
@@ -267,10 +270,10 @@ export function TimerPage() {
       {/* Today's progress */}
       <div className="mt-10 px-5">
         <div className="flex items-baseline justify-between">
-          <span className="text-sm font-medium text-muted">오늘</span>
+          <span className="text-sm font-medium text-muted">{t('timer.today')}</span>
           <span className="nums text-sm text-muted">
             <span className="font-semibold text-ink">{todayCount}</span> /{' '}
-            {dailyGoal} 뽀모도로
+            {dailyGoal} {t('timer.pomoUnit')}
           </span>
         </div>
         <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-surface-2">
@@ -285,13 +288,13 @@ export function TimerPage() {
       <Sheet
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
-        title="작업 선택"
+        title={t('timer.selectTask')}
       >
         {incompleteTasks.length === 0 ? (
           <EmptyState
             icon={<ListTodo size={32} strokeWidth={1.75} />}
-            title="할 일이 없어요"
-            hint="할 일 탭에서 작업을 추가해 보세요."
+            title={t('timer.empty.title')}
+            hint={t('timer.empty.hint')}
           />
         ) : (
           <ul className="flex flex-col gap-1">

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { ID, TimerMode } from '../types'
 import { audio } from '../audio/audioEngine'
+import { t } from '../i18n'
 import { durationSecFor, useSettingsStore } from './settingsStore'
 import { applyAccentForMode } from './themeStore'
 import { useUiStore } from './uiStore'
@@ -54,12 +55,6 @@ interface TimerState {
   syncDurations: () => void
   onVisible: () => void
   init: () => void
-}
-
-export const MODE_LABEL: Record<TimerMode, string> = {
-  focus: '집중',
-  short: '짧은 휴식',
-  long: '긴 휴식',
 }
 
 let loop: number | null = null
@@ -215,10 +210,12 @@ export const useTimerStore = create<TimerState>()(
         // needs an explicit notification here.
         if (st.notificationsEnabled && !isNativeRuntime()) {
           notify(
-            s.mode === 'focus' ? '집중 완료! 🎉' : '휴식 끝!',
             s.mode === 'focus'
-              ? `${MODE_LABEL[next]} 시간이에요. 잠시 쉬어가세요.`
-              : '다시 집중할 시간이에요.',
+              ? t('notif.focusDone.title')
+              : t('notif.breakDone.title'),
+            s.mode === 'focus'
+              ? t('notif.focusDone.body', { mode: t(`mode.${next}`) })
+              : t('notif.breakDone.body'),
           )
         }
 

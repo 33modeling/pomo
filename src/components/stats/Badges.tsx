@@ -1,5 +1,6 @@
 import { computeBadges } from '../../lib/motivation'
 import { cn } from '../../lib/cn'
+import { useT } from '../../i18n'
 import type { Session, Task } from '../../types'
 
 /** Achievement tiles: earned badges full-color, locked ones grayed out. */
@@ -10,6 +11,7 @@ export function Badges({
   sessions: Session[]
   tasks: Task[]
 }) {
+  const t = useT()
   const badges = computeBadges(sessions, tasks)
 
   return (
@@ -17,7 +19,7 @@ export function Badges({
       {badges.map((badge) => (
         <div
           key={badge.id}
-          title={`${badge.desc} · ${badge.progress}`}
+          title={`${t(`badge.${badge.id}.desc`)} · ${badge.progress}`}
           className={cn(
             'flex flex-col items-center gap-1 rounded-2xl px-1.5 py-3 text-center',
             badge.earned
@@ -27,7 +29,7 @@ export function Badges({
         >
           <span className="text-2xl leading-none">{badge.emoji}</span>
           <span className="truncate text-[10px] font-semibold leading-tight">
-            {badge.name}
+            {t(`badge.${badge.id}`)}
           </span>
           <span className="nums text-[9px] leading-none text-muted">
             {badge.progress}

@@ -1,5 +1,6 @@
 import type { Session, Task } from '../types'
 import { startOfDayMs } from './dates'
+import { t } from '../i18n'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -65,8 +66,6 @@ export function computeBadges(sessions: Session[], tasks: Task[]): Badge[] {
   ]
 }
 
-const WEEKDAY_KO = ['월', '화', '수', '목', '금', '토', '일'] // Monday-first
-
 export interface FocusInsight {
   bestWeekday: string
   bestWeekdayMin: number
@@ -94,9 +93,9 @@ export function focusInsight(sessions: Session[]): FocusInsight | null {
   for (let i = 1; i < 24; i++) if (byHour[i] > byHour[bh]) bh = i
 
   return {
-    bestWeekday: `${WEEKDAY_KO[bw]}요일`,
+    bestWeekday: t(`insight.wd.${bw}`),
     bestWeekdayMin: Math.round(byWeekday[bw]),
-    bestHourLabel: `${bh}시–${(bh + 1) % 24}시`,
+    bestHourLabel: t('insight.hour', { h: bh, h2: (bh + 1) % 24 }),
     bestHourMin: Math.round(byHour[bh]),
   }
 }
