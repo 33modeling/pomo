@@ -15,6 +15,11 @@ import {
   notify,
 } from '../lib/notifications'
 import {
+  cancelTimerEnd,
+  isNativeRuntime,
+  scheduleTimerEnd,
+} from '../lib/nativeNotify'
+import {
   initWakeLockResume,
   releaseWakeLock,
   requestWakeLock,
@@ -118,6 +123,11 @@ export const useTimerStore = create<TimerState>()(
           void requestWakeLock()
         }
         void ensureNotificationPermission()
+        // Native: schedule an OS alarm at the end time so it fires in the
+        // background. (No-op on the web.)
+        if (useSettingsStore.getState().notificationsEnabled) {
+          void scheduleTimerEnd(endsAt, s.mode)
+        }
         if (!autoStarted) audio.unlock()
       }
 
@@ -132,6 +142,7 @@ export const useTimerStore = create<TimerState>()(
         if (s.status === 'idle') return
         stopLoop()
         stopAmbience()
+        void cancelTimerEnd()
         const now = Date.now()
         const focused = Math.round(
           s.mode === 'focus'
@@ -175,7 +186,9 @@ export const useTimerStore = create<TimerState>()(
             navigator.vibrate(s.mode === 'focus' ? [300, 120, 300] : 200)
           }
         }
-        if (st.notificationsEnabled) {
+        // On native the scheduled OS alarm already fired; only the web path
+        // needs an explicit notification here.
+        if (st.notificationsEnabled && !isNativeRuntime()) {
           notify(
             s.mode === 'focus' ? '집중 완료! 🎉' : '휴식 끝!',
             s.mode === 'focus'
@@ -242,6 +255,7 @@ export const useTimerStore = create<TimerState>()(
             endsAt: null,
           })
           void releaseWakeLock()
+          void cancelTimerEnd()
         },
 
         toggle: () => {
@@ -255,6 +269,7 @@ export const useTimerStore = create<TimerState>()(
           stopLoop()
           stopAmbience()
           void releaseWakeLock()
+          void cancelTimerEnd()
           // Log a meaningful partial focus session.
           if (s.mode === 'focus' && s.status !== 'idle') {
             const now = Date.now()
@@ -297,6 +312,7 @@ export const useTimerStore = create<TimerState>()(
           stopLoop()
           stopAmbience()
           void releaseWakeLock()
+          void cancelTimerEnd()
           let cycle = s.completedFocusInCycle
           if (s.mode === 'long') cycle = 0
           // Skipping focus does not bump the cycle count.

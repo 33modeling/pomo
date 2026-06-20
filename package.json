@@ -12,7 +12,9 @@
     "android:sync": "npm run build && cap sync android",
     "android:apk": "npm run build && cap sync android && cd android && ./gradlew assembleDebug",
     "android:apk:release": "npm run build && cap sync android && cd android && ./gradlew assembleRelease",
+    "android:aab": "npm run build && cap sync android && cd android && ./gradlew bundleRelease",
     "android:open": "cap open android",
+    "keystore": "bash scripts/gen-keystore.sh",
     "android:icons": "node scripts/gen-icons.mjs && node scripts/gen-android-icons.mjs"
   },
   "repository": {
@@ -49,6 +51,7 @@
   "dependencies": {
     "@capacitor/android": "^7.6.7",
     "@capacitor/core": "^7.6.7",
+    "@capacitor/local-notifications": "^7.0.6",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "dexie": "^4.4.4",

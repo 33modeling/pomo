@@ -18,6 +18,7 @@
 - **사운드** — 백색·핑크·브라운 노이즈, 빗소리·파도·모닥불 (모두 **Web Audio로 실시간 합성**, 오디오 파일 0개)
   - 초침 소리, 종료 알림음(벨/차임/디지털/핑) — 역시 합성
 - **다크 모드** — 라이트 / 다크 / 시스템 자동
+- **네이티브 알람(APK)** — 종료 시각에 OS 알림을 예약해 앱이 **백그라운드·화면 꺼짐** 상태여도 알람이 울림 (Capacitor Local Notifications). 웹에서는 Web Notification으로 자동 폴백
 - **PWA** — 홈 화면 설치, 오프라인 캐싱, 알림, 진동, 화면 켜짐 유지(Wake Lock)
 
 ## 🛠 기술 스택
@@ -93,7 +94,26 @@ npm run android:open
 | minSdk / targetSdk | 23 / 35 |
 | Capacitor | 7.x (JDK 21, Gradle 8.11) |
 
-> 릴리스(서명) APK는 `npm run android:apk:release` 후 키스토어로 서명하세요. 디버그 APK는 디버그 키로 자동 서명되어 바로 설치됩니다.
+### 3) 릴리스 서명 (배포용)
+
+디버그 APK는 디버그 키로 자동 서명되어 바로 설치되지만, 스토어 배포에는 **릴리스 서명**이 필요합니다.
+
+1. 키스토어 생성 (최초 1회):
+
+   ```bash
+   npm run keystore     # 비밀번호 입력 → android/pomo-release.jks + android/keystore.properties 생성
+   ```
+
+   두 파일은 **gitignore**되어 커밋되지 않습니다. **반드시 백업**하세요 — 분실하면 Play 스토어에서 앱을 업데이트할 수 없습니다.
+
+2. 서명된 결과물:
+
+   ```bash
+   npm run android:apk:release   # → android/app/build/outputs/apk/release/app-release.apk
+   npm run android:aab           # → android/app/build/outputs/bundle/release/app-release.aab  (Play 업로드용)
+   ```
+
+   `keystore.properties`가 있으면 릴리스 키로 자동 서명되고, 없으면 미서명으로 빌드됩니다 (`android/app/build.gradle` 참고).
 
 ## 🗂 구조
 

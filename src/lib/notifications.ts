@@ -1,5 +1,8 @@
+import { isNativeRuntime, requestNativeNotifPermission } from './nativeNotify'
+
 /** Returns true when notifications are usable (permission granted). */
 export async function ensureNotificationPermission(): Promise<boolean> {
+  if (isNativeRuntime()) return requestNativeNotifPermission()
   if (!('Notification' in window)) return false
   if (Notification.permission === 'granted') return true
   if (Notification.permission === 'denied') return false
