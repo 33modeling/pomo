@@ -9,6 +9,13 @@ const config: CapacitorConfig = {
   android: {
     backgroundColor: '#0a0a0e',
   },
+  plugins: {
+    LocalNotifications: {
+      // Monochrome status-bar icon (white silhouette, system-tinted).
+      smallIcon: 'ic_stat_pomo',
+      iconColor: '#E8442F',
+    },
+  },
 }
 
 export default config

@@ -16,8 +16,12 @@ import {
 } from '../lib/notifications'
 import {
   cancelTimerEnd,
+  clearRunningNotification,
+  initNativeNotificationActions,
   isNativeRuntime,
   scheduleTimerEnd,
+  showPausedNotification,
+  showRunningNotification,
 } from '../lib/nativeNotify'
 import {
   initWakeLockResume,
@@ -123,10 +127,11 @@ export const useTimerStore = create<TimerState>()(
           void requestWakeLock()
         }
         void ensureNotificationPermission()
-        // Native: schedule an OS alarm at the end time so it fires in the
-        // background. (No-op on the web.)
+        // Native: schedule an OS alarm at the end time (fires in background)
+        // and show an ongoing notification with control buttons. (No-op on web.)
         if (useSettingsStore.getState().notificationsEnabled) {
           void scheduleTimerEnd(endsAt, s.mode)
+          void showRunningNotification(s.mode, s.remainingSec)
         }
         if (!autoStarted) audio.unlock()
       }
@@ -214,6 +219,9 @@ export const useTimerStore = create<TimerState>()(
           status: 'idle',
         })
 
+        // Clear the ongoing control notification; if auto-starting, the next
+        // segment will post a fresh one.
+        void clearRunningNotification()
         if (shouldAuto) beginSegment(true)
       }
 
@@ -256,6 +264,7 @@ export const useTimerStore = create<TimerState>()(
           })
           void releaseWakeLock()
           void cancelTimerEnd()
+          void showPausedNotification(s.mode, remaining)
         },
 
         toggle: () => {
@@ -270,6 +279,7 @@ export const useTimerStore = create<TimerState>()(
           stopAmbience()
           void releaseWakeLock()
           void cancelTimerEnd()
+          void clearRunningNotification()
           // Log a meaningful partial focus session.
           if (s.mode === 'focus' && s.status !== 'idle') {
             const now = Date.now()
@@ -313,6 +323,7 @@ export const useTimerStore = create<TimerState>()(
           stopAmbience()
           void releaseWakeLock()
           void cancelTimerEnd()
+          void clearRunningNotification()
           let cycle = s.completedFocusInCycle
           if (s.mode === 'long') cycle = 0
           // Skipping focus does not bump the cycle count.
@@ -372,6 +383,13 @@ export const useTimerStore = create<TimerState>()(
         init: () => {
           applyAccentForMode(get().mode)
           initWakeLockResume()
+
+          // Wire notification action buttons (시작/일시정지/종료) to the timer.
+          void initNativeNotificationActions({
+            pause: () => get().pause(),
+            resume: () => get().start(),
+            stop: () => get().reset(),
+          })
 
           // Reconcile a timer that was running before a reload.
           const s = get()

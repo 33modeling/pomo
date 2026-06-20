@@ -43,8 +43,14 @@ const circle = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"
 const foreground = `<svg xmlns="http://www.w3.org/2000/svg" width="432" height="432" viewBox="0 0 432 432">
   ${ring(216, 216, 108, 30)}</svg>`
 
+// Status-bar icon: white silhouette on transparent (Android tints it). Only the
+// alpha channel matters, so a plain white ring reads correctly when tinted.
+const statusIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  ${ring(48, 48, 34, 11)}</svg>`
+
 const LEGACY = { mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192 }
 const FORE = { mdpi: 108, hdpi: 162, xhdpi: 216, xxhdpi: 324, xxxhdpi: 432 }
+const STATUS = { mdpi: 24, hdpi: 36, xhdpi: 48, xxhdpi: 72, xxxhdpi: 96 }
 
 async function png(svg, size, dir, file) {
   const out = join(resDir, dir)
@@ -58,6 +64,9 @@ for (const [d, size] of Object.entries(LEGACY)) {
 }
 for (const [d, size] of Object.entries(FORE)) {
   await png(foreground, size, `mipmap-${d}`, 'ic_launcher_foreground.png')
+}
+for (const [d, size] of Object.entries(STATUS)) {
+  await png(statusIcon, size, `drawable-${d}`, 'ic_stat_pomo.png')
 }
 
 // Adaptive background color.

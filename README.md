@@ -18,7 +18,7 @@
 - **사운드** — 백색·핑크·브라운 노이즈, 빗소리·파도·모닥불 (모두 **Web Audio로 실시간 합성**, 오디오 파일 0개)
   - 초침 소리, 종료 알림음(벨/차임/디지털/핑) — 역시 합성
 - **다크 모드** — 라이트 / 다크 / 시스템 자동
-- **네이티브 알람(APK)** — 종료 시각에 OS 알림을 예약해 앱이 **백그라운드·화면 꺼짐** 상태여도 알람이 울림 (Capacitor Local Notifications). 웹에서는 Web Notification으로 자동 폴백
+- **네이티브 알람(APK)** — 종료 시각에 OS 알림을 예약해 앱이 **백그라운드·화면 꺼짐** 상태여도 알람이 울림. 진행 중 알림에서 **시작/일시정지/종료**를 바로 제어 (Capacitor Local Notifications, actionTypes). 웹에서는 Web Notification으로 자동 폴백
 - **PWA** — 홈 화면 설치, 오프라인 캐싱, 알림, 진동, 화면 켜짐 유지(Wake Lock)
 
 ## 🛠 기술 스택
@@ -114,6 +114,25 @@ npm run android:open
    ```
 
    `keystore.properties`가 있으면 릴리스 키로 자동 서명되고, 없으면 미서명으로 빌드됩니다 (`android/app/build.gradle` 참고).
+
+### 4) GitHub Actions 자동 빌드
+
+`.github/workflows/android.yml`이 푸시/태그/수동 실행 시 자동으로 빌드합니다.
+
+- **항상**: 디버그 APK 빌드 → 아티팩트 업로드 (`pomo-debug-apk`)
+- **서명 시크릿이 있으면**: 서명된 APK + AAB 빌드 → 아티팩트 업로드 (`pomo-release`)
+- **버전 태그(`vX.Y.Z`) 푸시 시**: 서명된 APK/AAB를 **GitHub Release**에 첨부
+
+서명 빌드를 켜려면 저장소 **Settings → Secrets and variables → Actions**에 등록:
+
+| 시크릿 | 값 |
+| --- | --- |
+| `KEYSTORE_BASE64` | `base64 -w0 android/pomo-release.jks` 결과 |
+| `KEYSTORE_PASSWORD` | 키스토어 비밀번호 |
+| `KEY_ALIAS` | 키 별칭 (예: `pomo`) |
+| `KEY_PASSWORD` | 키 비밀번호 |
+
+> 시크릿이 없으면 릴리스 단계는 자동으로 건너뛰고 디버그 APK만 빌드합니다.
 
 ## 🗂 구조
 
