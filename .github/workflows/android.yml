@@ -106,10 +106,33 @@ jobs:
             android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: warn
 
-      - name: Attach artifacts to GitHub Release (on tag)
-        if: ${{ startsWith(github.ref, 'refs/tags/') && env.KEYSTORE_BASE64 != '' }}
+      - name: Stage release assets (on tag)
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          mkdir -p release-assets
+          V="${GITHUB_REF_NAME}"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "release-assets/pomo-${V}-debug.apk"
+          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "release-assets/pomo-${V}-release.apk"
+          fi
+          if [ -f android/app/build/outputs/bundle/release/app-release.aab ]; then
+            cp android/app/build/outputs/bundle/release/app-release.aab "release-assets/pomo-${V}.aab"
+          fi
+          ls -la release-assets
+
+      - name: Create GitHub Release (on tag)
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            android/app/build/outputs/apk/release/app-release.apk
-            android/app/build/outputs/bundle/release/app-release.aab
+          name: Pomo ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: false
+          body: |
+            **Pomo** — 뽀모도로 집중 타이머 & 할 일 안드로이드 앱 (PWA + Capacitor).
+            로그인 불필요 · 오프라인 동작 · 모든 데이터는 기기에만 저장.
+
+            ### 설치
+            아래 `pomo-${{ github.ref_name }}-debug.apk`를 받아 안드로이드에서 설치하세요
+            ("출처를 알 수 없는 앱" 허용 필요). 저장소에 서명 시크릿(`KEYSTORE_BASE64` 등)을
+            설정하면 서명된 `-release.apk` 와 Play 업로드용 `.aab` 도 함께 첨부됩니다.
+          files: release-assets/*
