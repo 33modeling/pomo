@@ -1,10 +1,11 @@
 import { db } from './db'
 import { genId } from '../lib/id'
-import { startOfDayMs } from '../lib/dates'
+import { addDays, startOfDayMs } from '../lib/dates'
 import type {
   ID,
   Priority,
   Project,
+  RepeatRule,
   Session,
   Subtask,
   Task,
@@ -75,6 +76,7 @@ export interface NewTaskInput {
   estimatedPomos?: number
   priority?: Priority
   dueDate?: number | null
+  repeat?: RepeatRule
 }
 
 export async function listTasks(): Promise<Task[]> {
@@ -96,6 +98,7 @@ export async function createTask(input: NewTaskInput): Promise<ID> {
     completedPomos: 0,
     priority: input.priority ?? 'none',
     dueDate: input.dueDate ?? null,
+    repeat: input.repeat ?? 'none',
     completed: false,
     completedAt: null,
     order: count,
@@ -103,6 +106,19 @@ export async function createTask(input: NewTaskInput): Promise<ID> {
   }
   await db.tasks.add(task)
   return task.id
+}
+
+/** Next due date for a repeating task, from a base epoch-ms. */
+function nextDueDate(base: number, repeat: RepeatRule): number {
+  const start = startOfDayMs(base)
+  if (repeat === 'daily') return addDays(new Date(start), 1).getTime()
+  if (repeat === 'weekly') return addDays(new Date(start), 7).getTime()
+  if (repeat === 'weekdays') {
+    let d = addDays(new Date(start), 1)
+    while (d.getDay() === 0 || d.getDay() === 6) d = addDays(d, 1)
+    return d.getTime()
+  }
+  return start
 }
 
 export async function updateTask(
@@ -120,6 +136,19 @@ export async function toggleTaskComplete(id: ID): Promise<void> {
     completed,
     completedAt: completed ? Date.now() : null,
   })
+  // When completing a repeating task, spawn the next occurrence.
+  if (completed && task.repeat && task.repeat !== 'none') {
+    const due = nextDueDate(task.dueDate ?? Date.now(), task.repeat)
+    await createTask({
+      title: task.title,
+      projectId: task.projectId,
+      note: task.note,
+      estimatedPomos: task.estimatedPomos,
+      priority: task.priority,
+      dueDate: due,
+      repeat: task.repeat,
+    })
+  }
 }
 
 /** Adds one to the completed-pomodoro counter for a task. */

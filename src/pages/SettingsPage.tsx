@@ -1,11 +1,15 @@
-import { type ReactNode, useEffect } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import {
   Bell,
+  ChevronRight,
+  Database,
+  Download,
   Info,
   Palette,
   Play,
   Target,
   Timer,
+  Upload,
   Volume2,
   Zap,
 } from 'lucide-react'
@@ -21,10 +25,12 @@ import { useSettingsStore } from '../store/settingsStore'
 import { useThemeStore } from '../store/themeStore'
 import { useTimerStore } from '../store/timerStore'
 import { audio } from '../audio/audioEngine'
-import { ALARMS, NOISES } from '../audio/catalog'
+import { ALARMS } from '../audio/catalog'
 import { ensureNotificationPermission } from '../lib/notifications'
-import type { AlarmSoundId, NoiseId, Theme } from '../types'
+import { exportToFile, importFromFile } from '../lib/backup'
+import type { AlarmSoundId, Theme } from '../types'
 import { cn } from '../lib/cn'
+import { SoundsSheet } from './SoundsSheet'
 
 function Section({
   icon,
@@ -111,11 +117,21 @@ export function SettingsPage() {
     if (id !== 'none') audio.previewAlarm(id, s.alarmVolume)
   }
 
-  const selectNoise = (id: NoiseId) => {
-    update({ whiteNoise: id })
-    audio.unlock()
-    if (id === 'none') audio.stopNoise()
-    else audio.setNoise(id, s.whiteNoiseVolume)
+  const soundCount = Object.keys(s.soundMix).length
+  const [soundsOpen, setSoundsOpen] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const onImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!confirm('현재 데이터를 백업 파일로 덮어쓸까요? 되돌릴 수 없습니다.')) return
+    try {
+      const r = await importFromFile(file)
+      alert(`가져오기 완료 — 할 일 ${r.tasks}개, 기록 ${r.sessions}개`)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '가져오기에 실패했습니다.')
+    }
   }
 
   const toggleNotifications = async (next: boolean) => {
@@ -286,35 +302,21 @@ export function SettingsPage() {
             />
           )}
 
-          <div className="space-y-3 py-3">
-            <p className="text-[15px] font-medium text-ink">백색소음</p>
-            <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
-              {NOISES.map((n) => (
-                <button
-                  key={n.id}
-                  type="button"
-                  onClick={() => selectNoise(n.id)}
-                  className={cn(
-                    'flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition',
-                    s.whiteNoise === n.id
-                      ? 'bg-accent text-on-accent'
-                      : 'bg-surface-2 text-muted hover:text-ink',
-                  )}
-                >
-                  <span>{n.emoji}</span>
-                  <span>{n.label}</span>
-                </button>
-              ))}
+          <button
+            type="button"
+            onClick={() => setSoundsOpen(true)}
+            className="flex w-full items-center justify-between py-3 text-left"
+          >
+            <div>
+              <p className="text-[15px] font-medium text-ink">집중 사운드</p>
+              <p className="mt-0.5 text-xs text-muted">
+                {soundCount > 0
+                  ? `${soundCount}개 믹스 중`
+                  : '자연의 소리·노이즈 믹스, 사운드 타이머'}
+              </p>
             </div>
-          </div>
-          <SliderRow
-            label="백색소음 볼륨"
-            value={s.whiteNoiseVolume}
-            onChange={(v) => {
-              update({ whiteNoiseVolume: v })
-              audio.setNoiseVolume(v)
-            }}
-          />
+            <ChevronRight size={20} className="shrink-0 text-faint" />
+          </button>
         </Section>
 
         {/* 알림 & 기기 */}
@@ -372,6 +374,30 @@ export function SettingsPage() {
           />
         </Section>
 
+        {/* 데이터 */}
+        <Section icon={<Database size={14} />} title="데이터">
+          <Row
+            label="내보내기"
+            hint="모든 데이터를 JSON 파일로 저장"
+            control={
+              <Button size="sm" onClick={() => void exportToFile()}>
+                <Download size={16} />
+                내보내기
+              </Button>
+            }
+          />
+          <Row
+            label="가져오기"
+            hint="백업 파일에서 복원 (기존 데이터 대체)"
+            control={
+              <Button size="sm" onClick={() => fileRef.current?.click()}>
+                <Upload size={16} />
+                가져오기
+              </Button>
+            }
+          />
+        </Section>
+
         {/* 정보 */}
         <Section icon={<Info size={14} />} title="정보">
           <Row
@@ -399,6 +425,15 @@ export function SettingsPage() {
           설정 초기화
         </Button>
       </div>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={onImportFile}
+      />
+      <SoundsSheet open={soundsOpen} onClose={() => setSoundsOpen(false)} />
     </div>
   )
 }

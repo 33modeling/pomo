@@ -1,21 +1,23 @@
 import type { AlarmSoundId, NoiseId } from '../types'
 
+interface Layer {
+  gain: GainNode
+  nodes: AudioNode[]
+  timer?: number
+}
+
 /**
- * Web Audio engine. Everything (ambient noise, ticking, alarms) is synthesised
+ * Web Audio engine. Everything (ambient sounds, ticking, alarms) is synthesised
  * at runtime, so the app ships with zero audio assets and works fully offline.
  *
- * Must be (re)started from a user gesture — browsers suspend AudioContext until
- * then. The timer's Start button is that gesture.
+ * Ambient sounds are layered: several can play and mix at once, each with its
+ * own volume. Must be (re)started from a user gesture (the Start button).
  */
 class AudioEngine {
   private ctx: AudioContext | null = null
 
-  // ambient noise
-  private noiseGain: GainNode | null = null
-  private noiseNodes: AudioNode[] = []
-  private crackleTimer: number | null = null
-  private currentNoise: NoiseId = 'none'
-  private noiseVolume = 0.5
+  // ambient sound layers (id -> nodes)
+  private layers = new Map<NoiseId, Layer>()
 
   // ticking
   private tickGain: GainNode | null = null
@@ -45,8 +47,7 @@ class AudioEngine {
 
   private makeBuffer(color: 'white' | 'pink' | 'brown'): AudioBuffer {
     const ctx = this.ensure()
-    const seconds = 3
-    const length = ctx.sampleRate * seconds
+    const length = ctx.sampleRate * 3
     const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
     const data = buffer.getChannelData(0)
 
@@ -68,12 +69,10 @@ class AudioEngine {
         b3 = 0.8665 * b3 + white * 0.3104856
         b4 = 0.55 * b4 + white * 0.5329522
         b5 = -0.7616 * b5 - white * 0.016898
-        const pink = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362
+        data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11
         b6 = white * 0.115926
-        data[i] = pink * 0.11
       }
     } else {
-      // brown
       let last = 0
       for (let i = 0; i < length; i++) {
         const white = Math.random() * 2 - 1
@@ -84,127 +83,47 @@ class AudioEngine {
     return buffer
   }
 
-  // --------------------------------------------------------------------------
-  // Ambient noise control
-  // --------------------------------------------------------------------------
-
-  setNoise(id: NoiseId, volume: number): void {
-    this.noiseVolume = volume
-    if (id === 'none') {
-      this.stopNoise()
-      return
-    }
-    if (id === this.currentNoise && this.noiseGain) {
-      this.setNoiseVolume(volume)
-      return
-    }
-    this.stopNoise()
+  private loopSource(color: 'white' | 'pink' | 'brown'): AudioBufferSourceNode {
     const ctx = this.ensure()
-    this.currentNoise = id
-
-    const gain = ctx.createGain()
-    gain.gain.value = volume * 0.6
-    gain.connect(ctx.destination)
-    this.noiseGain = gain
-
-    const base: 'white' | 'pink' | 'brown' =
-      id === 'white' || id === 'rain'
-        ? 'white'
-        : id === 'pink'
-          ? 'pink'
-          : 'brown'
-
     const src = ctx.createBufferSource()
-    src.buffer = this.makeBuffer(base)
+    src.buffer = this.makeBuffer(color)
     src.loop = true
-
-    let tail: AudioNode = src
-    const track = (n: AudioNode) => {
-      this.noiseNodes.push(n)
-      return n
-    }
-    track(src)
-
-    if (id === 'rain') {
-      const hp = ctx.createBiquadFilter()
-      hp.type = 'highpass'
-      hp.frequency.value = 900
-      tail.connect(hp)
-      tail = track(hp)
-    } else if (id === 'ocean') {
-      const lp = ctx.createBiquadFilter()
-      lp.type = 'lowpass'
-      lp.frequency.value = 550
-      tail.connect(lp)
-      tail = track(lp)
-      // slow wave swell via LFO modulating the gain
-      const lfo = ctx.createOscillator()
-      lfo.frequency.value = 0.12
-      const lfoGain = ctx.createGain()
-      lfoGain.gain.value = volume * 0.35
-      lfo.connect(lfoGain)
-      lfoGain.connect(gain.gain)
-      lfo.start()
-      track(lfo)
-      track(lfoGain)
-    } else if (id === 'fire') {
-      const lp = ctx.createBiquadFilter()
-      lp.type = 'lowpass'
-      lp.frequency.value = 800
-      tail.connect(lp)
-      tail = track(lp)
-      this.startCrackle(gain)
-    }
-
-    tail.connect(gain)
-    src.start()
+    return src
   }
 
-  private startCrackle(dest: GainNode): void {
-    const ctx = this.ensure()
-    this.crackleTimer = window.setInterval(() => {
-      if (Math.random() > 0.55) return
-      const dur = 0.03 + Math.random() * 0.05
-      const burst = ctx.createBufferSource()
-      const len = Math.floor(ctx.sampleRate * dur)
-      const buf = ctx.createBuffer(1, len, ctx.sampleRate)
-      const d = buf.getChannelData(0)
-      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1
-      burst.buffer = buf
-      const hp = ctx.createBiquadFilter()
-      hp.type = 'highpass'
-      hp.frequency.value = 1500
-      const g = ctx.createGain()
-      const peak = this.noiseVolume * 0.25 * Math.random()
-      const now = ctx.currentTime
-      g.gain.setValueAtTime(0, now)
-      g.gain.linearRampToValueAtTime(peak, now + 0.005)
-      g.gain.exponentialRampToValueAtTime(0.0001, now + dur)
-      burst.connect(hp)
-      hp.connect(g)
-      g.connect(dest)
-      burst.start(now)
-      burst.stop(now + dur + 0.02)
-    }, 90)
-  }
+  // --------------------------------------------------------------------------
+  // Ambient sound mixing
+  // --------------------------------------------------------------------------
 
-  setNoiseVolume(volume: number): void {
-    this.noiseVolume = volume
-    if (this.noiseGain && this.ctx) {
-      this.noiseGain.gain.setTargetAtTime(
-        volume * 0.6,
-        this.ctx.currentTime,
-        0.05,
-      )
+  /** Make the playing layers match `mix` exactly (add / remove / re-level). */
+  setMix(mix: Partial<Record<NoiseId, number>>): void {
+    for (const id of [...this.layers.keys()]) {
+      const v = mix[id]
+      if (v == null || v <= 0) this.removeLayer(id)
+    }
+    for (const key of Object.keys(mix) as NoiseId[]) {
+      const v = mix[key]
+      if (key === 'none' || v == null || v <= 0) continue
+      if (this.layers.has(key)) this.setLayerVolume(key, v)
+      else {
+        this.ensure()
+        this.layers.set(key, this.buildLayer(key, v))
+      }
     }
   }
 
-  stopNoise(): void {
-    if (this.crackleTimer !== null) {
-      clearInterval(this.crackleTimer)
-      this.crackleTimer = null
+  setLayerVolume(id: NoiseId, volume: number): void {
+    const layer = this.layers.get(id)
+    if (layer && this.ctx) {
+      layer.gain.gain.setTargetAtTime(volume * 0.6, this.ctx.currentTime, 0.05)
     }
-    for (const n of this.noiseNodes) {
+  }
+
+  private removeLayer(id: NoiseId): void {
+    const layer = this.layers.get(id)
+    if (!layer) return
+    if (layer.timer != null) clearInterval(layer.timer)
+    for (const n of layer.nodes) {
       try {
         if ('stop' in n) (n as AudioScheduledSourceNode).stop()
       } catch {
@@ -216,16 +135,220 @@ class AudioEngine {
         /* noop */
       }
     }
-    this.noiseNodes = []
-    if (this.noiseGain) {
-      try {
-        this.noiseGain.disconnect()
-      } catch {
-        /* noop */
-      }
-      this.noiseGain = null
+    try {
+      layer.gain.disconnect()
+    } catch {
+      /* noop */
     }
-    this.currentNoise = 'none'
+    this.layers.delete(id)
+  }
+
+  stopNoise(): void {
+    for (const id of [...this.layers.keys()]) this.removeLayer(id)
+  }
+
+  /** Gently ramp every layer to silence over `seconds`, then stop. */
+  fadeOutNoise(seconds = 4): void {
+    if (!this.ctx || this.layers.size === 0) return
+    const t = this.ctx.currentTime
+    for (const layer of this.layers.values()) {
+      const g = layer.gain.gain
+      g.cancelScheduledValues(t)
+      g.setValueAtTime(Math.max(0.0001, g.value), t)
+      g.linearRampToValueAtTime(0.0001, t + seconds)
+    }
+    window.setTimeout(() => this.stopNoise(), seconds * 1000 + 120)
+  }
+
+  private buildLayer(id: NoiseId, volume: number): Layer {
+    const ctx = this.ensure()
+    const gain = ctx.createGain()
+    gain.gain.value = volume * 0.6
+    gain.connect(ctx.destination)
+    const nodes: AudioNode[] = []
+    const track = <T extends AudioNode>(n: T): T => {
+      nodes.push(n)
+      return n
+    }
+    const layer: Layer = { gain, nodes }
+
+    const connectBuffer = (
+      color: 'white' | 'pink' | 'brown',
+      filters: AudioNode[],
+    ) => {
+      const src = track(this.loopSource(color))
+      let tail: AudioNode = src
+      for (const f of filters) {
+        tail.connect(f)
+        tail = track(f)
+      }
+      tail.connect(gain)
+      src.start()
+    }
+
+    switch (id) {
+      case 'rain': {
+        const hp = ctx.createBiquadFilter()
+        hp.type = 'highpass'
+        hp.frequency.value = 900
+        connectBuffer('white', [hp])
+        break
+      }
+      case 'ocean': {
+        const lp = ctx.createBiquadFilter()
+        lp.type = 'lowpass'
+        lp.frequency.value = 550
+        connectBuffer('brown', [lp])
+        const lfo = track(ctx.createOscillator())
+        lfo.frequency.value = 0.12
+        const lfoGain = track(ctx.createGain())
+        lfoGain.gain.value = volume * 0.35
+        lfo.connect(lfoGain)
+        lfoGain.connect(gain.gain)
+        lfo.start()
+        break
+      }
+      case 'fire': {
+        const lp = ctx.createBiquadFilter()
+        lp.type = 'lowpass'
+        lp.frequency.value = 800
+        connectBuffer('brown', [lp])
+        layer.timer = this.crackleTimer(gain, () => volume)
+        break
+      }
+      case 'stream': {
+        const bp = ctx.createBiquadFilter()
+        bp.type = 'bandpass'
+        bp.frequency.value = 1100
+        bp.Q.value = 0.7
+        const lp = ctx.createBiquadFilter()
+        lp.type = 'lowpass'
+        lp.frequency.value = 3200
+        connectBuffer('white', [bp, lp])
+        // babbling: slowly wobble the band centre
+        const lfo = track(ctx.createOscillator())
+        lfo.frequency.value = 0.4
+        const lfoGain = track(ctx.createGain())
+        lfoGain.gain.value = 350
+        lfo.connect(lfoGain)
+        lfoGain.connect(bp.frequency)
+        lfo.start()
+        break
+      }
+      case 'birds': {
+        const lp = ctx.createBiquadFilter()
+        lp.type = 'lowpass'
+        lp.frequency.value = 1200
+        // soft wind bed (quiet)
+        const bed = track(this.loopSource('pink'))
+        const bedGain = track(ctx.createGain())
+        bedGain.gain.value = 0.28
+        bed.connect(lp)
+        lp.connect(bedGain)
+        bedGain.connect(gain)
+        bed.start()
+        layer.timer = this.chirpTimer(gain, () => volume)
+        break
+      }
+      case 'cafe': {
+        const lp = ctx.createBiquadFilter()
+        lp.type = 'lowpass'
+        lp.frequency.value = 520
+        connectBuffer('brown', [lp])
+        layer.timer = this.clinkTimer(gain, () => volume)
+        break
+      }
+      default: {
+        // white / pink / brown
+        const color: 'white' | 'pink' | 'brown' =
+          id === 'white' ? 'white' : id === 'pink' ? 'pink' : 'brown'
+        connectBuffer(color, [])
+      }
+    }
+    return layer
+  }
+
+  // crackling embers (fire)
+  private crackleTimer(dest: GainNode, vol: () => number): number {
+    const ctx = this.ensure()
+    return window.setInterval(() => {
+      if (Math.random() > 0.55) return
+      const dur = 0.03 + Math.random() * 0.05
+      const len = Math.floor(ctx.sampleRate * dur)
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate)
+      const d = buf.getChannelData(0)
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1
+      const burst = ctx.createBufferSource()
+      burst.buffer = buf
+      const hp = ctx.createBiquadFilter()
+      hp.type = 'highpass'
+      hp.frequency.value = 1500
+      const g = ctx.createGain()
+      const now = ctx.currentTime
+      const peak = vol() * 0.4 * Math.random()
+      g.gain.setValueAtTime(0, now)
+      g.gain.linearRampToValueAtTime(peak, now + 0.005)
+      g.gain.exponentialRampToValueAtTime(0.0001, now + dur)
+      burst.connect(hp)
+      hp.connect(g)
+      g.connect(dest)
+      burst.start(now)
+      burst.stop(now + dur + 0.02)
+    }, 90)
+  }
+
+  // occasional bird chirps
+  private chirpTimer(dest: GainNode, vol: () => number): number {
+    const ctx = this.ensure()
+    return window.setInterval(() => {
+      if (Math.random() > 0.4) return
+      const now = ctx.currentTime
+      const notes = 1 + Math.floor(Math.random() * 3)
+      for (let n = 0; n < notes; n++) {
+        const start = now + n * 0.13
+        const base = 2600 + Math.random() * 1800
+        const osc = ctx.createOscillator()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(base, start)
+        osc.frequency.linearRampToValueAtTime(base + 700, start + 0.06)
+        osc.frequency.linearRampToValueAtTime(base - 300, start + 0.12)
+        const g = ctx.createGain()
+        const peak = vol() * 0.5
+        g.gain.setValueAtTime(0, start)
+        g.gain.linearRampToValueAtTime(peak, start + 0.02)
+        g.gain.exponentialRampToValueAtTime(0.0001, start + 0.13)
+        osc.connect(g)
+        g.connect(dest)
+        osc.start(start)
+        osc.stop(start + 0.16)
+      }
+    }, 700)
+  }
+
+  // distant cup/cutlery clinks (cafe)
+  private clinkTimer(dest: GainNode, vol: () => number): number {
+    const ctx = this.ensure()
+    return window.setInterval(() => {
+      if (Math.random() > 0.3) return
+      const now = ctx.currentTime
+      const osc = ctx.createOscillator()
+      osc.type = 'triangle'
+      osc.frequency.value = 2200 + Math.random() * 2000
+      const bp = ctx.createBiquadFilter()
+      bp.type = 'bandpass'
+      bp.frequency.value = osc.frequency.value
+      bp.Q.value = 6
+      const g = ctx.createGain()
+      const peak = vol() * 0.12
+      g.gain.setValueAtTime(0, now)
+      g.gain.linearRampToValueAtTime(peak, now + 0.004)
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.25)
+      osc.connect(bp)
+      bp.connect(g)
+      g.connect(dest)
+      osc.start(now)
+      osc.stop(now + 0.3)
+    }, 1600)
   }
 
   // --------------------------------------------------------------------------
@@ -328,9 +451,7 @@ class AudioEngine {
         note(1046.5, 0.54, 0.9)
         break
       case 'digital':
-        for (let i = 0; i < 3; i++) {
-          note(1568, i * 0.22, 0.14, 'square', 0.4)
-        }
+        for (let i = 0; i < 3; i++) note(1568, i * 0.22, 0.14, 'square', 0.4)
         break
       case 'ping':
         note(1318.5, 0, 0.9, 'sine', 0.6)

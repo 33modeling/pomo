@@ -63,11 +63,19 @@ export const MODE_LABEL: Record<TimerMode, string> = {
 }
 
 let loop: number | null = null
+let soundStopTimer: number | null = null
 
 function stopLoop() {
   if (loop !== null) {
     clearInterval(loop)
     loop = null
+  }
+}
+
+function clearSoundStopTimer() {
+  if (soundStopTimer !== null) {
+    clearTimeout(soundStopTimer)
+    soundStopTimer = null
   }
 }
 
@@ -98,15 +106,27 @@ export const useTimerStore = create<TimerState>()(
         const s = get()
         if (s.mode !== 'focus') return
         audio.unlock()
-        if (st.whiteNoise !== 'none') {
-          audio.setNoise(st.whiteNoise, st.whiteNoiseVolume)
+        if (st.soundMix && Object.keys(st.soundMix).length > 0) {
+          audio.setMix(st.soundMix)
         }
         if (st.tickingEnabled) {
           audio.startTicking(st.tickingVolume)
         }
+        // Auto-stop ambient sound after N minutes (fades out).
+        clearSoundStopTimer()
+        if (st.soundAutoStopMin > 0) {
+          soundStopTimer = window.setTimeout(
+            () => {
+              audio.fadeOutNoise(4)
+              audio.stopTicking()
+            },
+            st.soundAutoStopMin * 60 * 1000,
+          )
+        }
       }
 
       function stopAmbience() {
+        clearSoundStopTimer()
         audio.stopNoise()
         audio.stopTicking()
       }

@@ -22,6 +22,12 @@ export type NoiseId =
   | 'rain'
   | 'ocean'
   | 'fire'
+  | 'birds'
+  | 'stream'
+  | 'cafe'
+
+/** Recurrence rule for repeating tasks / habits. */
+export type RepeatRule = 'none' | 'daily' | 'weekdays' | 'weekly'
 
 /** Light / dark / follow-system theme preference. */
 export type Theme = 'light' | 'dark' | 'system'
@@ -53,6 +59,8 @@ export interface Task {
   priority: Priority
   /** Epoch ms at start-of-day, or null when no due date. */
   dueDate: number | null
+  /** Recurrence; when completed, the next occurrence is spawned. */
+  repeat: RepeatRule
   completed: boolean
   completedAt: number | null
   order: number
@@ -110,8 +118,10 @@ export interface Settings {
   // ambience
   tickingEnabled: boolean
   tickingVolume: number // 0..1
-  whiteNoise: NoiseId
-  whiteNoiseVolume: number // 0..1
+  /** Active ambient sounds mixed together: sound id -> volume (0..1). */
+  soundMix: Partial<Record<NoiseId, number>>
+  /** Auto-stop ambient sound after N minutes (0 = off). */
+  soundAutoStopMin: number
 
   // device
   vibrationEnabled: boolean

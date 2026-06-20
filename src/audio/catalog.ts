@@ -15,6 +15,9 @@ export const NOISES: NoiseOption[] = [
   { id: 'rain', label: '빗소리', emoji: '🌧️', desc: '차분한 빗방울' },
   { id: 'ocean', label: '파도소리', emoji: '🌊', desc: '밀려오는 파도' },
   { id: 'fire', label: '모닥불', emoji: '🔥', desc: '타닥이는 장작' },
+  { id: 'birds', label: '숲속 새', emoji: '🐦', desc: '지저귀는 새소리' },
+  { id: 'stream', label: '시냇물', emoji: '🏞️', desc: '졸졸 흐르는 물' },
+  { id: 'cafe', label: '카페', emoji: '☕', desc: '잔잔한 카페 소음' },
 ]
 
 export interface AlarmOption {

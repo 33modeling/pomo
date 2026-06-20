@@ -19,6 +19,22 @@ export class PomoDB extends Dexie {
       subtasks: 'id, taskId, order',
       sessions: 'id, mode, taskId, projectId, startedAt, endedAt',
     })
+    // v2: add `repeat` to tasks (not indexed); default existing rows to 'none'.
+    this.version(2)
+      .stores({
+        projects: 'id, order, archived, createdAt',
+        tasks: 'id, projectId, completed, dueDate, order, createdAt, completedAt',
+        subtasks: 'id, taskId, order',
+        sessions: 'id, mode, taskId, projectId, startedAt, endedAt',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('tasks')
+          .toCollection()
+          .modify((t: { repeat?: string }) => {
+            if (t.repeat === undefined) t.repeat = 'none'
+          }),
+      )
   }
 }
 

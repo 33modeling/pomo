@@ -19,8 +19,8 @@ export const DEFAULT_SETTINGS: Settings = {
 
   tickingEnabled: false,
   tickingVolume: 0.4,
-  whiteNoise: 'none',
-  whiteNoiseVolume: 0.5,
+  soundMix: {},
+  soundAutoStopMin: 0,
 
   vibrationEnabled: true,
   notificationsEnabled: true,
@@ -43,7 +43,23 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'pomo-settings',
-      version: 1,
+      version: 2,
+      migrate: (persisted, version) => {
+        const s = persisted as Record<string, unknown>
+        if (version < 2) {
+          // Old single-noise model -> new sound mix.
+          const mix: Record<string, number> = {}
+          const old = s.whiteNoise as string | undefined
+          if (old && old !== 'none') {
+            mix[old] = (s.whiteNoiseVolume as number | undefined) ?? 0.5
+          }
+          s.soundMix = mix
+          s.soundAutoStopMin = 0
+          delete s.whiteNoise
+          delete s.whiteNoiseVolume
+        }
+        return s as unknown as SettingsState
+      },
     },
   ),
 )

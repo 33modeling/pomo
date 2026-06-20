@@ -21,7 +21,7 @@ import {
   updateTask,
 } from '../../db/repo'
 import { useTimerStore } from '../../store/timerStore'
-import type { ID, Priority, Project, Task } from '../../types'
+import type { ID, Priority, Project, RepeatRule, Task } from '../../types'
 
 interface Props {
   task: Task | null
@@ -34,6 +34,13 @@ const PRIORITY_OPTIONS: { value: Priority; label: string }[] = [
   { value: 'low', label: '낮음' },
   { value: 'medium', label: '보통' },
   { value: 'high', label: '높음' },
+]
+
+const REPEAT_OPTIONS: { value: RepeatRule; label: string }[] = [
+  { value: 'none', label: '없음' },
+  { value: 'daily', label: '매일' },
+  { value: 'weekdays', label: '평일' },
+  { value: 'weekly', label: '매주' },
 ]
 
 function toInputDate(ms: number): string {
@@ -51,6 +58,7 @@ export function TaskDetailSheet({ task, onClose, projects }: Props) {
   const [estimate, setEstimate] = useState(1)
   const [priority, setPriority] = useState<Priority>('none')
   const [due, setDue] = useState<number | null>(null)
+  const [repeat, setRepeat] = useState<RepeatRule>('none')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [newSub, setNewSub] = useState('')
 
@@ -68,6 +76,7 @@ export function TaskDetailSheet({ task, onClose, projects }: Props) {
     setEstimate(task.estimatedPomos)
     setPriority(task.priority)
     setDue(task.dueDate)
+    setRepeat(task.repeat)
     setConfirmDelete(false)
     setNewSub('')
   }, [task])
@@ -85,6 +94,7 @@ export function TaskDetailSheet({ task, onClose, projects }: Props) {
       estimatedPomos: estimate,
       priority,
       dueDate: due,
+      repeat,
     })
   }
 
@@ -171,6 +181,10 @@ export function TaskDetailSheet({ task, onClose, projects }: Props) {
               className="h-9 rounded-xl bg-surface-2 px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
+        </Field>
+
+        <Field label="반복">
+          <SegmentedControl options={REPEAT_OPTIONS} value={repeat} onChange={setRepeat} />
         </Field>
 
         <Field label="하위 항목">

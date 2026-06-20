@@ -1,4 +1,4 @@
-import { Check, Flag, Play } from 'lucide-react'
+import { Check, Flag, Play, Repeat } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { IconButton } from '../IconButton'
 import { cn } from '../../lib/cn'
@@ -6,7 +6,13 @@ import { PRIORITY_META } from '../../lib/constants'
 import { isToday, isTomorrow } from '../../lib/dates'
 import { toggleTaskComplete } from '../../db/repo'
 import { useTimerStore } from '../../store/timerStore'
-import type { Project, Task } from '../../types'
+import type { Project, RepeatRule, Task } from '../../types'
+
+const REPEAT_LABEL: Record<Exclude<RepeatRule, 'none'>, string> = {
+  daily: '매일',
+  weekdays: '평일',
+  weekly: '매주',
+}
 
 interface Props {
   task: Task
@@ -45,7 +51,8 @@ export function TaskItem({ task, project, showProject, onOpen }: Props) {
     (showProject && project) ||
     task.priority !== 'none' ||
     task.estimatedPomos > 0 ||
-    task.dueDate != null
+    task.dueDate != null ||
+    task.repeat !== 'none'
 
   return (
     <div
@@ -122,6 +129,13 @@ export function TaskItem({ task, project, showProject, onOpen }: Props) {
                 )}
               >
                 {dueLabel(task.dueDate)}
+              </span>
+            )}
+
+            {task.repeat !== 'none' && (
+              <span className="flex items-center gap-1 text-muted">
+                <Repeat size={12} />
+                {REPEAT_LABEL[task.repeat]}
               </span>
             )}
           </div>

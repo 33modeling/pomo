@@ -17,16 +17,18 @@ import {
 
 import { db } from '../db/db'
 import { listProjects, listSessions, sessionsBetween } from '../db/repo'
-import { rangeFor, daysInRange, type StatPeriod } from '../lib/dates'
+import { rangeFor, daysInRange, startOfDayMs, type StatPeriod } from '../lib/dates'
 import { formatDuration } from '../lib/format'
+import { cn } from '../lib/cn'
 import { INBOX_NAME, INBOX_COLOR } from '../lib/constants'
-import type { ID, Session } from '../types'
+import type { ID, Session, Task } from '../types'
 
 import { Header } from '../components/Header'
 import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { BarChart, type Bar } from '../components/stats/BarChart'
+import { Heatmap } from '../components/stats/Heatmap'
 
 const PERIOD_OPTIONS: { value: StatPeriod; label: string }[] = [
   { value: 'day', label: '오늘' },
@@ -135,6 +137,61 @@ export function StatsPage() {
   const distMax = distribution[0]?.sec ?? 0
   const hasAnySession = sessions.length > 0
 
+  // --- Cumulative total (all focus sessions, all time) ------------------------
+  const totalFocusSec = useMemo(
+    () =>
+      allSessions.reduce(
+        (sum, s) => (s.mode === 'focus' ? sum + s.durationSec : sum),
+        0,
+      ),
+    [allSessions],
+  )
+
+  // --- Heatmap: last 119 days (17 weeks) ending today -------------------------
+  const heatmapDays = useMemo(() => {
+    const todayStart = startOfDayMs(refNow)
+    const firstDay = todayStart - 118 * DAY_MS
+    const minutesByDay = new Map<number, number>()
+    for (const s of allSessions) {
+      if (s.mode !== 'focus') continue
+      const day = startOfDayMs(s.startedAt)
+      if (day < firstDay || day > todayStart) continue
+      minutesByDay.set(day, (minutesByDay.get(day) ?? 0) + s.durationSec / 60)
+    }
+    const days: { day: number; minutes: number }[] = []
+    for (let day = firstDay; day <= todayStart; day += DAY_MS) {
+      days.push({ day, minutes: minutesByDay.get(day) ?? 0 })
+    }
+    return days
+  }, [allSessions, refNow])
+
+  // --- History: period's focus sessions, newest first, capped -----------------
+  const taskById = useMemo(() => {
+    const map = new Map<ID, Task>()
+    for (const t of allTasks) map.set(t.id, t)
+    return map
+  }, [allTasks])
+
+  const historyRows = useMemo(() => {
+    return [...focusSessions]
+      .sort((a, b) => b.startedAt - a.startedAt)
+      .slice(0, 40)
+      .map((s) => {
+        const d = new Date(s.startedAt)
+        const when = `${d.getMonth() + 1}/${d.getDate()} ${String(
+          d.getHours(),
+        ).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+        const task = s.taskId != null ? taskById.get(s.taskId) : undefined
+        const title = task?.title ?? '집중'
+        const projectId = task?.projectId ?? s.projectId
+        const color =
+          projectId != null
+            ? projectName.get(projectId)?.color ?? INBOX_COLOR
+            : INBOX_COLOR
+        return { id: s.id, when, title, color, durationSec: s.durationSec }
+      })
+  }, [focusSessions, taskById, projectName])
+
   return (
     <div className="flex flex-col gap-5 px-5 pb-8">
       <Header title="통계" />
@@ -145,6 +202,19 @@ export function StatsPage() {
         onChange={setPeriod}
         className="animate-fade-in"
       />
+
+      {/* Cumulative total (all time) */}
+      <Card className="flex items-center gap-4 p-5 animate-fade-in">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-accent">
+          <Clock size={22} strokeWidth={2.2} />
+        </span>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-xs font-medium text-muted">전체 누적 집중</span>
+          <span className="nums text-2xl font-bold leading-none text-ink">
+            {totalFocusSec > 0 ? formatDuration(totalFocusSec) : '0분'}
+          </span>
+        </div>
+      </Card>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3">
@@ -169,6 +239,12 @@ export function StatsPage() {
           value={`${streak}일`}
         />
       </div>
+
+      {/* Focus heatmap (잔디) — all-time, last 17 weeks */}
+      <Card className="flex flex-col gap-4 p-5 animate-fade-in">
+        <SectionTitle>집중 잔디</SectionTitle>
+        <Heatmap days={heatmapDays} />
+      </Card>
 
       {!hasAnySession ? (
         <Card className="animate-fade-in">
@@ -218,6 +294,42 @@ export function StatsPage() {
                         }}
                       />
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* History */}
+          <Card className="flex flex-col gap-4 p-5 animate-fade-in">
+            <SectionTitle>기록</SectionTitle>
+            {historyRows.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted">
+                기록이 없어요.
+              </p>
+            ) : (
+              <div className="flex flex-col">
+                {historyRows.map((row, i) => (
+                  <div
+                    key={row.id}
+                    className={cn(
+                      'flex items-center gap-3 py-2.5',
+                      i > 0 && 'border-t border-line',
+                    )}
+                  >
+                    <span className="nums w-[72px] shrink-0 text-xs font-medium text-muted">
+                      {row.when}
+                    </span>
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: row.color }}
+                    />
+                    <span className="flex-1 truncate text-sm font-medium text-ink">
+                      {row.title}
+                    </span>
+                    <span className="nums shrink-0 text-sm font-semibold text-muted">
+                      {formatDuration(row.durationSec)}
+                    </span>
                   </div>
                 ))}
               </div>
