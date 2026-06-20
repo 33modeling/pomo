@@ -7,6 +7,7 @@ import { IconButton } from '../IconButton'
 import { SegmentedControl } from '../SegmentedControl'
 import { Sheet } from '../Sheet'
 import { Stepper } from '../Stepper'
+import { Switch } from '../Switch'
 import { ProjectChip } from './AddTaskSheet'
 import { cn } from '../../lib/cn'
 import { INBOX_COLOR, INBOX_NAME } from '../../lib/constants'
@@ -58,6 +59,8 @@ export function TaskDetailSheet({ task, onClose, projects }: Props) {
   const [estimate, setEstimate] = useState(1)
   const [priority, setPriority] = useState<Priority>('none')
   const [due, setDue] = useState<number | null>(null)
+  const [remindOn, setRemindOn] = useState(false)
+  const [remindTime, setRemindTime] = useState('09:00')
   const [repeat, setRepeat] = useState<RepeatRule>('none')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [newSub, setNewSub] = useState('')
@@ -76,6 +79,16 @@ export function TaskDetailSheet({ task, onClose, projects }: Props) {
     setEstimate(task.estimatedPomos)
     setPriority(task.priority)
     setDue(task.dueDate)
+    if (task.remindAt != null) {
+      setRemindOn(true)
+      const d = new Date(task.remindAt)
+      const hh = String(d.getHours()).padStart(2, '0')
+      const mm = String(d.getMinutes()).padStart(2, '0')
+      setRemindTime(`${hh}:${mm}`)
+    } else {
+      setRemindOn(false)
+      setRemindTime('09:00')
+    }
     setRepeat(task.repeat)
     setConfirmDelete(false)
     setNewSub('')
@@ -87,6 +100,12 @@ export function TaskDetailSheet({ task, onClose, projects }: Props) {
   // Persist edits on close.
   const persist = () => {
     const t = title.trim()
+    let remindAt: number | null = null
+    if (remindOn) {
+      const [h, m] = remindTime.split(':').map(Number)
+      const base = due ?? startOfDayMs(Date.now())
+      remindAt = startOfDayMs(base) + h * 3600000 + m * 60000
+    }
     void updateTask(taskId, {
       title: t || task.title,
       note: note.trim(),
@@ -94,6 +113,7 @@ export function TaskDetailSheet({ task, onClose, projects }: Props) {
       estimatedPomos: estimate,
       priority,
       dueDate: due,
+      remindAt,
       repeat,
     })
   }
@@ -181,6 +201,24 @@ export function TaskDetailSheet({ task, onClose, projects }: Props) {
               className="h-9 rounded-xl bg-surface-2 px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
+        </Field>
+
+        <Field label="알림">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted">알림</span>
+            <Switch checked={remindOn} onChange={setRemindOn} />
+          </div>
+          {remindOn && (
+            <div className="flex flex-col gap-1.5">
+              <input
+                type="time"
+                value={remindTime}
+                onChange={(e) => setRemindTime(e.target.value || '09:00')}
+                className="h-9 rounded-xl bg-surface-2 px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-accent"
+              />
+              <span className="text-xs text-faint">기기 앱(APK)에서 알림이 울립니다</span>
+            </div>
+          )}
         </Field>
 
         <Field label="반복">

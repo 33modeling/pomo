@@ -3,6 +3,7 @@ import { Button } from '../Button'
 import { SegmentedControl } from '../SegmentedControl'
 import { Sheet } from '../Sheet'
 import { Stepper } from '../Stepper'
+import { Switch } from '../Switch'
 import { cn } from '../../lib/cn'
 import { INBOX_COLOR, INBOX_NAME } from '../../lib/constants'
 import { startOfDayMs, addDays } from '../../lib/dates'
@@ -44,6 +45,8 @@ export function AddTaskSheet({ open, onClose, projects, defaultProjectId }: Prop
   const [estimate, setEstimate] = useState(1)
   const [priority, setPriority] = useState<Priority>('none')
   const [due, setDue] = useState<number | null>(null)
+  const [remindOn, setRemindOn] = useState(false)
+  const [remindTime, setRemindTime] = useState('09:00')
   const [repeat, setRepeat] = useState<RepeatRule>('none')
   const [note, setNote] = useState('')
 
@@ -54,6 +57,8 @@ export function AddTaskSheet({ open, onClose, projects, defaultProjectId }: Prop
       setEstimate(1)
       setPriority('none')
       setDue(null)
+      setRemindOn(false)
+      setRemindTime('09:00')
       setRepeat('none')
       setNote('')
     }
@@ -61,6 +66,13 @@ export function AddTaskSheet({ open, onClose, projects, defaultProjectId }: Prop
 
   const today = startOfDayMs(Date.now())
   const tomorrow = addDays(new Date(today), 1).getTime()
+
+  const computeRemindAt = (): number | null => {
+    if (!remindOn) return null
+    const [h, m] = remindTime.split(':').map(Number)
+    const base = due ?? startOfDayMs(Date.now())
+    return startOfDayMs(base) + h * 3600000 + m * 60000
+  }
 
   const save = async () => {
     if (!title.trim()) return
@@ -70,6 +82,7 @@ export function AddTaskSheet({ open, onClose, projects, defaultProjectId }: Prop
       estimatedPomos: estimate,
       priority,
       dueDate: due,
+      remindAt: computeRemindAt(),
       repeat,
       note: note.trim(),
     })
@@ -132,6 +145,24 @@ export function AddTaskSheet({ open, onClose, projects, defaultProjectId }: Prop
               className="h-9 rounded-xl bg-surface-2 px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
+        </Field>
+
+        <Field label="알림">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted">알림</span>
+            <Switch checked={remindOn} onChange={setRemindOn} />
+          </div>
+          {remindOn && (
+            <div className="flex flex-col gap-1.5">
+              <input
+                type="time"
+                value={remindTime}
+                onChange={(e) => setRemindTime(e.target.value || '09:00')}
+                className="h-9 rounded-xl bg-surface-2 px-3 text-sm text-ink outline-none focus:ring-2 focus:ring-accent"
+              />
+              <span className="text-xs text-faint">기기 앱(APK)에서 알림이 울립니다</span>
+            </div>
+          )}
         </Field>
 
         <Field label="반복">

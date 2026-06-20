@@ -11,6 +11,7 @@ import {
   Timer,
   Upload,
   Volume2,
+  X,
   Zap,
 } from 'lucide-react'
 import { Header } from '../components/Header'
@@ -21,16 +22,19 @@ import { Switch } from '../components/Switch'
 import { Slider } from '../components/Slider'
 import { Stepper } from '../components/Stepper'
 import { SegmentedControl } from '../components/SegmentedControl'
-import { useSettingsStore } from '../store/settingsStore'
+import { DEFAULT_SETTINGS, useSettingsStore } from '../store/settingsStore'
 import { useThemeStore } from '../store/themeStore'
 import { useTimerStore } from '../store/timerStore'
 import { audio } from '../audio/audioEngine'
 import { ALARMS } from '../audio/catalog'
 import { ensureNotificationPermission } from '../lib/notifications'
-import { exportToFile, importFromFile } from '../lib/backup'
+import { exportSessionsCsv, exportToFile, importFromFile } from '../lib/backup'
 import type { AlarmSoundId, Theme } from '../types'
 import { cn } from '../lib/cn'
 import { SoundsSheet } from './SoundsSheet'
+
+/** Built-in timer presets are not deletable. */
+const DEFAULT_PRESET_COUNT = DEFAULT_SETTINGS.timerPresets.length
 
 function Section({
   icon,
@@ -134,6 +138,23 @@ export function SettingsPage() {
     }
   }
 
+  const saveCurrentPreset = () => {
+    const name = prompt('프리셋 이름')?.trim()
+    if (!name) return
+    update({
+      timerPresets: [
+        ...s.timerPresets,
+        {
+          name,
+          focusMin: s.focusMin,
+          shortMin: s.shortMin,
+          longMin: s.longMin,
+          longBreakInterval: s.longBreakInterval,
+        },
+      ],
+    })
+  }
+
   const toggleNotifications = async (next: boolean) => {
     if (!next) {
       update({ notificationsEnabled: false })
@@ -204,6 +225,67 @@ export function SettingsPage() {
               />
             }
           />
+          <div className="space-y-3 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[15px] font-medium text-ink">프리셋</p>
+              <Button size="sm" variant="ghost" onClick={saveCurrentPreset}>
+                현재 설정 저장
+              </Button>
+            </div>
+            <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
+              {s.timerPresets.map((p, i) => {
+                const active =
+                  s.focusMin === p.focusMin &&
+                  s.shortMin === p.shortMin &&
+                  s.longMin === p.longMin &&
+                  s.longBreakInterval === p.longBreakInterval
+                const deletable = i >= DEFAULT_PRESET_COUNT
+                return (
+                  <div
+                    key={`${p.name}-${i}`}
+                    className={cn(
+                      'flex shrink-0 items-center gap-1.5 rounded-full py-2 pl-4 text-sm font-semibold transition',
+                      deletable ? 'pr-2' : 'pr-4',
+                      active
+                        ? 'bg-accent text-on-accent'
+                        : 'bg-surface-2 text-muted',
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        update({
+                          focusMin: p.focusMin,
+                          shortMin: p.shortMin,
+                          longMin: p.longMin,
+                          longBreakInterval: p.longBreakInterval,
+                        })
+                      }
+                      className={cn(!active && 'hover:text-ink')}
+                    >
+                      {p.name}
+                    </button>
+                    {deletable && (
+                      <button
+                        type="button"
+                        aria-label={`${p.name} 삭제`}
+                        onClick={() =>
+                          update({
+                            timerPresets: s.timerPresets.filter(
+                              (_, j) => j !== i,
+                            ),
+                          })
+                        }
+                        className="opacity-70 transition hover:opacity-100"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         </Section>
 
         {/* 자동화 */}
@@ -393,6 +475,16 @@ export function SettingsPage() {
               <Button size="sm" onClick={() => fileRef.current?.click()}>
                 <Upload size={16} />
                 가져오기
+              </Button>
+            }
+          />
+          <Row
+            label="세션 CSV 내보내기"
+            hint="집중 기록을 표로 저장"
+            control={
+              <Button size="sm" onClick={() => void exportSessionsCsv()}>
+                <Download size={16} />
+                CSV
               </Button>
             }
           />

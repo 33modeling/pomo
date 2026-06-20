@@ -29,6 +29,21 @@ export type NoiseId =
 /** Recurrence rule for repeating tasks / habits. */
 export type RepeatRule = 'none' | 'daily' | 'weekdays' | 'weekly'
 
+/** A saved timer configuration the user can switch between. */
+export interface TimerPreset {
+  name: string
+  focusMin: number
+  shortMin: number
+  longMin: number
+  longBreakInterval: number
+}
+
+/** A saved, named ambient sound mix. */
+export interface SoundPreset {
+  name: string
+  mix: Partial<Record<NoiseId, number>>
+}
+
 /** Light / dark / follow-system theme preference. */
 export type Theme = 'light' | 'dark' | 'system'
 
@@ -59,6 +74,8 @@ export interface Task {
   priority: Priority
   /** Epoch ms at start-of-day, or null when no due date. */
   dueDate: number | null
+  /** Absolute epoch ms for a reminder notification, or null. */
+  remindAt: number | null
   /** Recurrence; when completed, the next occurrence is spawned. */
   repeat: RepeatRule
   completed: boolean
@@ -130,4 +147,8 @@ export interface Settings {
 
   // display
   clockOnStart: boolean // enter the full-screen desk-clock view when starting
+
+  // presets
+  timerPresets: TimerPreset[]
+  soundPresets: SoundPreset[]
 }

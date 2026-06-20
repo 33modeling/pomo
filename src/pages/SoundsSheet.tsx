@@ -1,6 +1,8 @@
-import { Volume2, VolumeX } from 'lucide-react'
+import { Volume2, VolumeX, X } from 'lucide-react'
+import { useState } from 'react'
 import { audio } from '../audio/audioEngine'
 import { NOISES } from '../audio/catalog'
+import { Button } from '../components/Button'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { Sheet } from '../components/Sheet'
 import { Slider } from '../components/Slider'
@@ -27,7 +29,10 @@ export function SoundsSheet({ open, onClose }: Props) {
   const tickingEnabled = useSettingsStore((s) => s.tickingEnabled)
   const tickingVolume = useSettingsStore((s) => s.tickingVolume)
   const soundAutoStopMin = useSettingsStore((s) => s.soundAutoStopMin)
+  const soundPresets = useSettingsStore((s) => s.soundPresets)
   const update = useSettingsStore((s) => s.update)
+
+  const [presetName, setPresetName] = useState('')
 
   const sounds = NOISES.filter((n) => n.id !== 'none')
   const activeCount = Object.keys(soundMix).length
@@ -36,6 +41,17 @@ export function SoundsSheet({ open, onClose }: Props) {
     update({ soundMix: mix })
     audio.unlock()
     audio.setMix(mix)
+  }
+
+  const savePreset = () => {
+    const name = presetName.trim()
+    if (!name || Object.keys(soundMix).length === 0) return
+    update({ soundPresets: [...soundPresets, { name, mix: { ...soundMix } }] })
+    setPresetName('')
+  }
+
+  const deletePreset = (idx: number) => {
+    update({ soundPresets: soundPresets.filter((_, i) => i !== idx) })
   }
 
   const toggle = (id: NoiseId) => {
@@ -142,6 +158,53 @@ export function SoundsSheet({ open, onClose }: Props) {
                 />
               </div>
             ))}
+        </section>
+
+        {/* Saved sound presets */}
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-muted">프리셋</h3>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={presetName}
+              onChange={(e) => setPresetName(e.target.value)}
+              placeholder="프리셋 이름"
+              className="h-11 min-w-0 flex-1 rounded-2xl border border-line bg-surface-2 px-4 text-[15px] text-ink placeholder:text-faint focus:border-accent focus:outline-none"
+            />
+            <Button
+              type="button"
+              onClick={savePreset}
+              disabled={!presetName.trim() || activeCount === 0}
+            >
+              저장
+            </Button>
+          </div>
+          {soundPresets.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {soundPresets.map((preset, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-1.5 rounded-full border border-line bg-surface-2 py-1 pl-3 pr-1.5 text-sm font-semibold text-ink"
+                >
+                  <button
+                    type="button"
+                    onClick={() => apply(preset.mix)}
+                    className="hover:text-accent"
+                  >
+                    {preset.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deletePreset(idx)}
+                    aria-label={`${preset.name} 삭제`}
+                    className="flex h-5 w-5 items-center justify-center rounded-full text-faint hover:bg-line hover:text-ink"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Sound timer (auto fade-out) */}

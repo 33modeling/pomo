@@ -1,6 +1,11 @@
 import { db } from './db'
 import { genId } from '../lib/id'
 import { addDays, startOfDayMs } from '../lib/dates'
+import {
+  cancelTaskReminder,
+  scheduleTaskReminder,
+  syncAllTaskReminders,
+} from '../lib/nativeNotify'
 import type {
   ID,
   Priority,
@@ -76,6 +81,7 @@ export interface NewTaskInput {
   estimatedPomos?: number
   priority?: Priority
   dueDate?: number | null
+  remindAt?: number | null
   repeat?: RepeatRule
 }
 
@@ -98,6 +104,7 @@ export async function createTask(input: NewTaskInput): Promise<ID> {
     completedPomos: 0,
     priority: input.priority ?? 'none',
     dueDate: input.dueDate ?? null,
+    remindAt: input.remindAt ?? null,
     repeat: input.repeat ?? 'none',
     completed: false,
     completedAt: null,
@@ -105,6 +112,7 @@ export async function createTask(input: NewTaskInput): Promise<ID> {
     createdAt: Date.now(),
   }
   await db.tasks.add(task)
+  await scheduleTaskReminder(task)
   return task.id
 }
 
@@ -126,16 +134,17 @@ export async function updateTask(
   patch: Partial<Omit<Task, 'id'>>,
 ): Promise<void> {
   await db.tasks.update(id, patch)
+  const task = await db.tasks.get(id)
+  if (task) await scheduleTaskReminder(task)
 }
 
 export async function toggleTaskComplete(id: ID): Promise<void> {
   const task = await db.tasks.get(id)
   if (!task) return
   const completed = !task.completed
-  await db.tasks.update(id, {
-    completed,
-    completedAt: completed ? Date.now() : null,
-  })
+  const completedAt = completed ? Date.now() : null
+  await db.tasks.update(id, { completed, completedAt })
+  await scheduleTaskReminder({ ...task, completed, completedAt })
   // When completing a repeating task, spawn the next occurrence.
   if (completed && task.repeat && task.repeat !== 'none') {
     const due = nextDueDate(task.dueDate ?? Date.now(), task.repeat)
@@ -163,6 +172,12 @@ export async function deleteTask(id: ID): Promise<void> {
     await db.subtasks.where('taskId').equals(id).delete()
     await db.tasks.delete(id)
   })
+  await cancelTaskReminder(id)
+}
+
+/** Re-arm all future task reminders (called once on startup). */
+export async function resyncReminders(): Promise<void> {
+  await syncAllTaskReminders(await db.tasks.toArray())
 }
 
 export async function reorderTasks(orderedIds: ID[]): Promise<void> {

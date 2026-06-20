@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   Check,
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
+import { Confetti } from '../components/Confetti'
 import { EmptyState } from '../components/EmptyState'
 import { Header } from '../components/Header'
 import { IconButton } from '../components/IconButton'
@@ -38,6 +39,7 @@ const MODE_OPTIONS: { value: TimerMode; label: string }[] = [
 export function TimerPage() {
   const [soundsOpen, setSoundsOpen] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [celebrate, setCelebrate] = useState(false)
 
   const mode = useTimerStore((s) => s.mode)
   const status = useTimerStore((s) => s.status)
@@ -52,8 +54,13 @@ export function TimerPage() {
   const skip = useTimerStore((s) => s.skip)
   const selectTask = useTimerStore((s) => s.selectTask)
 
+  const focusMin = useSettingsStore((s) => s.focusMin)
+  const shortMin = useSettingsStore((s) => s.shortMin)
+  const longMin = useSettingsStore((s) => s.longMin)
   const longBreakInterval = useSettingsStore((s) => s.longBreakInterval)
   const dailyGoal = useSettingsStore((s) => s.dailyGoal)
+  const timerPresets = useSettingsStore((s) => s.timerPresets)
+  const update = useSettingsStore((s) => s.update)
   const openClock = useUiStore((s) => s.openClock)
 
   const running = status === 'running'
@@ -75,6 +82,15 @@ export function TimerPage() {
 
   const progress = totalSec > 0 ? (totalSec - remainingSec) / totalSec : 0
   const goalRatio = dailyGoal > 0 ? Math.min(1, todayCount / dailyGoal) : 0
+
+  // Celebrate once when the daily goal is first reached today.
+  useEffect(() => {
+    if (dailyGoal <= 0 || todayCount < dailyGoal) return
+    const today = new Date().toDateString()
+    if (localStorage.getItem('pomo-goal-day') === today) return
+    localStorage.setItem('pomo-goal-day', today)
+    setCelebrate(true)
+  }, [todayCount, dailyGoal])
 
   function handleMode(next: TimerMode) {
     if (running) return
@@ -109,6 +125,40 @@ export function TimerPage() {
           onChange={handleMode}
           className={cn('mt-1', running && 'pointer-events-none opacity-50')}
         />
+
+        {status === 'idle' && timerPresets.length > 0 && (
+          <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto">
+            {timerPresets.map((preset) => {
+              const active =
+                preset.focusMin === focusMin &&
+                preset.shortMin === shortMin &&
+                preset.longMin === longMin &&
+                preset.longBreakInterval === longBreakInterval
+              return (
+                <button
+                  key={preset.name}
+                  type="button"
+                  onClick={() =>
+                    update({
+                      focusMin: preset.focusMin,
+                      shortMin: preset.shortMin,
+                      longMin: preset.longMin,
+                      longBreakInterval: preset.longBreakInterval,
+                    })
+                  }
+                  className={cn(
+                    'shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition',
+                    active
+                      ? 'bg-accent text-on-accent'
+                      : 'bg-surface-2 text-muted hover:text-ink',
+                  )}
+                >
+                  {preset.name}
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Timer ring */}
@@ -286,6 +336,8 @@ export function TimerPage() {
       </Sheet>
 
       <SoundsSheet open={soundsOpen} onClose={() => setSoundsOpen(false)} />
+
+      <Confetti show={celebrate} onDone={() => setCelebrate(false)} />
     </div>
   )
 }

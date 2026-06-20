@@ -8,7 +8,29 @@ import type {
   Subtask,
   Task,
   Theme,
+  TimerMode,
 } from '../types'
+
+const MODE_KO: Record<TimerMode, string> = {
+  focus: '집중',
+  short: '짧은 휴식',
+  long: '긴 휴식',
+}
+
+function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+function csvCell(v: string): string {
+  return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v
+}
 
 interface BackupFile {
   app: 'pomo'
@@ -127,4 +149,42 @@ export async function importFromFile(file: File): Promise<ImportResult> {
     tasks: tasks.length,
     sessions: sessions.length,
   }
+}
+
+/** Export the session history to a CSV file (Excel-friendly, UTF-8 BOM). */
+export async function exportSessionsCsv(): Promise<void> {
+  const [sessions, tasks, projects] = await Promise.all([
+    db.sessions.toArray(),
+    db.tasks.toArray(),
+    db.projects.toArray(),
+  ])
+  const taskName = new Map(tasks.map((t) => [t.id, t.title]))
+  const projName = new Map(projects.map((p) => [p.id, p.name]))
+  sessions.sort((a, b) => a.startedAt - b.startedAt)
+
+  const header = ['날짜', '시작시각', '종류', '집중(분)', '완료', '작업', '프로젝트']
+  const lines = [header.join(',')]
+  for (const s of sessions) {
+    const d = new Date(s.startedAt)
+    const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`
+    const row = [
+      date,
+      time,
+      MODE_KO[s.mode],
+      (s.durationSec / 60).toFixed(1),
+      s.completed ? 'O' : '',
+      s.taskId ? (taskName.get(s.taskId) ?? '') : '',
+      s.projectId ? (projName.get(s.projectId) ?? '') : '',
+    ]
+    lines.push(row.map((c) => csvCell(String(c))).join(','))
+  }
+
+  const csv = '﻿' + lines.join('\n')
+  const d = new Date()
+  const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`
+  downloadBlob(
+    new Blob([csv], { type: 'text/csv;charset=utf-8' }),
+    `pomo-sessions-${stamp}.csv`,
+  )
 }

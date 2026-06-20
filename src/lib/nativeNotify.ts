@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core'
 import { LocalNotifications } from '@capacitor/local-notifications'
-import type { TimerMode } from '../types'
+import type { Task, TimerMode } from '../types'
 import { mmss } from './format'
 
 // Native (Capacitor) alarm + controls. On a real device:
@@ -11,6 +11,14 @@ import { mmss } from './format'
 
 const END_ID = 1
 const CONTROL_ID = 2
+
+// Stable positive 32-bit notification id for a task (kept away from the
+// timer's reserved ids 1 and 2).
+function taskNotifId(taskId: string): number {
+  let h = 5381
+  for (let i = 0; i < taskId.length; i++) h = (h * 33) ^ taskId.charCodeAt(i)
+  return (Math.abs(h) % 2_000_000_000) + 1000
+}
 
 const MODE_KO: Record<TimerMode, string> = {
   focus: '집중',
@@ -176,5 +184,51 @@ export async function clearRunningNotification(): Promise<void> {
     await LocalNotifications.cancel({ notifications: [{ id: CONTROL_ID }] })
   } catch {
     /* nothing to clear */
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Task due reminders
+// ---------------------------------------------------------------------------
+
+/** Schedule (or cancel) a task's reminder based on its remindAt / completed. */
+export async function scheduleTaskReminder(task: Task): Promise<void> {
+  if (!isNativeRuntime()) return
+  const id = taskNotifId(task.id)
+  try {
+    await LocalNotifications.cancel({ notifications: [{ id }] })
+    if (!task.completed && task.remindAt != null && task.remindAt > Date.now()) {
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id,
+            title: `⏰ ${task.title}`,
+            body: '예정된 할 일 알림이에요.',
+            schedule: { at: new Date(task.remindAt), allowWhileIdle: true },
+          },
+        ],
+      })
+    }
+  } catch {
+    /* permission denied or unsupported */
+  }
+}
+
+export async function cancelTaskReminder(taskId: string): Promise<void> {
+  if (!isNativeRuntime()) return
+  try {
+    await LocalNotifications.cancel({ notifications: [{ id: taskNotifId(taskId) }] })
+  } catch {
+    /* nothing scheduled */
+  }
+}
+
+/** Re-arm all future task reminders (call once on startup). */
+export async function syncAllTaskReminders(tasks: Task[]): Promise<void> {
+  if (!isNativeRuntime()) return
+  for (const t of tasks) {
+    if (!t.completed && t.remindAt != null && t.remindAt > Date.now()) {
+      await scheduleTaskReminder(t)
+    }
   }
 }

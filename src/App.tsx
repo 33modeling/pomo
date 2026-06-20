@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { ClockMode } from './components/ClockMode'
 import { Layout } from './components/Layout'
+import { resyncReminders } from './db/repo'
 import { SettingsPage } from './pages/SettingsPage'
 import { StatsPage } from './pages/StatsPage'
 import { TasksPage } from './pages/TasksPage'
@@ -11,6 +12,7 @@ import { useTimerStore } from './store/timerStore'
 export default function App() {
   useEffect(() => {
     useTimerStore.getState().init()
+    void resyncReminders()
   }, [])
 
   return (

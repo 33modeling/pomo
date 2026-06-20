@@ -27,6 +27,13 @@ export const DEFAULT_SETTINGS: Settings = {
   keepAwake: true,
 
   clockOnStart: false,
+
+  timerPresets: [
+    { name: '클래식', focusMin: 25, shortMin: 5, longMin: 15, longBreakInterval: 4 },
+    { name: '길게 집중', focusMin: 50, shortMin: 10, longMin: 20, longBreakInterval: 3 },
+    { name: '딥 워크', focusMin: 90, shortMin: 20, longMin: 30, longBreakInterval: 2 },
+  ],
+  soundPresets: [],
 }
 
 interface SettingsState extends Settings {

@@ -19,6 +19,7 @@ import { db } from '../db/db'
 import { listProjects, listSessions, sessionsBetween } from '../db/repo'
 import { rangeFor, daysInRange, startOfDayMs, type StatPeriod } from '../lib/dates'
 import { formatDuration } from '../lib/format'
+import { focusInsight } from '../lib/motivation'
 import { cn } from '../lib/cn'
 import { INBOX_NAME, INBOX_COLOR } from '../lib/constants'
 import type { ID, Session, Task } from '../types'
@@ -29,6 +30,7 @@ import { EmptyState } from '../components/EmptyState'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { BarChart, type Bar } from '../components/stats/BarChart'
 import { Heatmap } from '../components/stats/Heatmap'
+import { Badges } from '../components/stats/Badges'
 
 const PERIOD_OPTIONS: { value: StatPeriod; label: string }[] = [
   { value: 'day', label: '오늘' },
@@ -137,6 +139,9 @@ export function StatsPage() {
   const distMax = distribution[0]?.sec ?? 0
   const hasAnySession = sessions.length > 0
 
+  // --- Weekly insight (all-time focus sessions) -------------------------------
+  const insight = useMemo(() => focusInsight(allSessions), [allSessions])
+
   // --- Cumulative total (all focus sessions, all time) ------------------------
   const totalFocusSec = useMemo(
     () =>
@@ -239,6 +244,31 @@ export function StatsPage() {
           value={`${streak}일`}
         />
       </div>
+
+      {/* Achievements */}
+      <Card className="flex flex-col gap-4 p-5 animate-fade-in">
+        <SectionTitle>성취</SectionTitle>
+        <Badges sessions={allSessions} tasks={allTasks} />
+      </Card>
+
+      {/* Weekly insight */}
+      {insight && (
+        <Card className="flex flex-col gap-3 p-5 animate-fade-in">
+          <SectionTitle>인사이트</SectionTitle>
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium text-ink">
+              가장 집중한 요일 ·{' '}
+              <span className="font-semibold">{insight.bestWeekday}</span>{' '}
+              <span className="nums text-muted">({insight.bestWeekdayMin}분)</span>
+            </p>
+            <p className="text-sm font-medium text-ink">
+              가장 집중한 시간대 ·{' '}
+              <span className="font-semibold">{insight.bestHourLabel}</span>{' '}
+              <span className="nums text-muted">({insight.bestHourMin}분)</span>
+            </p>
+          </div>
+        </Card>
+      )}
 
       {/* Focus heatmap (잔디) — all-time, last 17 weeks */}
       <Card className="flex flex-col gap-4 p-5 animate-fade-in">
