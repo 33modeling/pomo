@@ -15,14 +15,17 @@ export function Switch({ checked, onChange, disabled }: Props) {
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-40',
+        // appearance-none/border-0/p-0/outline-none kill the native button chrome
+        // and default padding that breaks the pill on older Android WebViews.
+        // inline-flex + items-center positions the knob without absolute layout.
+        'relative inline-flex h-7 w-12 shrink-0 cursor-pointer appearance-none items-center rounded-full border-0 p-0 outline-none transition-colors disabled:opacity-40',
         checked ? 'bg-accent' : 'bg-line',
       )}
     >
       <span
         className={cn(
-          'absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform',
-          checked ? 'translate-x-[22px]' : 'translate-x-0.5',
+          'pointer-events-none block h-6 w-6 rounded-full bg-white shadow transition-transform duration-200',
+          checked ? 'translate-x-[22px]' : 'translate-x-[2px]',
         )}
       />
     </button>

@@ -435,15 +435,31 @@ export function SettingsPage() {
               />
             }
           />
-          <Row
-            label={t('settings.vibration')}
-            control={
-              <Switch
-                checked={s.vibrationEnabled}
-                onChange={(v) => update({ vibrationEnabled: v })}
-              />
-            }
-          />
+          <div className="space-y-2 py-3">
+            <p className="text-[15px] font-medium text-ink">
+              {t('settings.alertMode')}
+            </p>
+            <SegmentedControl
+              value={
+                s.soundEnabled
+                  ? s.vibrationEnabled
+                    ? 'both'
+                    : 'sound'
+                  : 'vibration'
+              }
+              onChange={(m) =>
+                update({
+                  soundEnabled: m !== 'vibration',
+                  vibrationEnabled: m !== 'sound',
+                })
+              }
+              options={[
+                { value: 'both', label: t('settings.alertMode.both') },
+                { value: 'sound', label: t('settings.alertMode.sound') },
+                { value: 'vibration', label: t('settings.alertMode.vibration') },
+              ]}
+            />
+          </div>
           <Row
             label={t('settings.keepAwake')}
             hint={t('settings.keepAwake.hint')}

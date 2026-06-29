@@ -13,6 +13,28 @@ import { t } from '../i18n'
 const END_ID = 1
 const CONTROL_ID = 2
 
+// Channel for the "vibration only" alert mode: high importance so it vibrates,
+// but no sound assigned -> silent. (A channel's sound/vibration are locked once
+// created, so the mode is expressed by which channel a notification targets.)
+const SILENT_CHANNEL_ID = 'pomo_alarm_silent'
+let channelsReady = false
+
+async function ensureChannels(): Promise<void> {
+  if (!isNativeRuntime() || channelsReady) return
+  channelsReady = true
+  try {
+    await LocalNotifications.createChannel({
+      id: SILENT_CHANNEL_ID,
+      name: 'Pomo · Vibration only',
+      importance: 4, // HIGH: heads-up + vibration, but no sound (none assigned)
+      vibration: true,
+      visibility: 1,
+    })
+  } catch {
+    /* unsupported (pre-Android 8) — default channel is used instead */
+  }
+}
+
 // Stable positive 32-bit notification id for a task (kept away from the
 // timer's reserved ids 1 and 2).
 function taskNotifId(taskId: string): number {
@@ -48,9 +70,14 @@ function endMessage(mode: TimerMode): { title: string; body: string } {
 export async function scheduleTimerEnd(
   atMs: number,
   mode: TimerMode,
+  opts: { sound?: boolean } = {},
 ): Promise<void> {
   if (!isNativeRuntime()) return
+  await ensureChannels()
   const { title, body } = endMessage(mode)
+  // Vibration-only mode -> silent channel; otherwise the default channel
+  // (system sound + vibration) is used.
+  const channelId = opts.sound === false ? SILENT_CHANNEL_ID : undefined
   try {
     await LocalNotifications.cancel({ notifications: [{ id: END_ID }] })
     await LocalNotifications.schedule({
@@ -59,6 +86,7 @@ export async function scheduleTimerEnd(
           id: END_ID,
           title,
           body,
+          channelId,
           schedule: { at: new Date(atMs), allowWhileIdle: true },
         },
       ],

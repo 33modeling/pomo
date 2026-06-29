@@ -145,7 +145,9 @@ export const useTimerStore = create<TimerState>()(
         // Native: schedule an OS alarm at the end time (fires in background)
         // and show an ongoing notification with control buttons. (No-op on web.)
         if (useSettingsStore.getState().notificationsEnabled) {
-          void scheduleTimerEnd(endsAt, s.mode)
+          void scheduleTimerEnd(endsAt, s.mode, {
+            sound: useSettingsStore.getState().soundEnabled,
+          })
           void showRunningNotification(s.mode, s.remainingSec)
         }
         if (!autoStarted) audio.unlock()

@@ -51,6 +51,10 @@ export const settings: Dict = {
     'settings.notifications': '알림',
     'settings.notifications.hint': '세션 종료 시 알림 표시',
     'settings.vibration': '진동',
+    'settings.alertMode': '알림 방식',
+    'settings.alertMode.both': '소리+진동',
+    'settings.alertMode.sound': '소리만',
+    'settings.alertMode.vibration': '진동만',
     'settings.keepAwake': '화면 켜짐 유지',
     'settings.keepAwake.hint': '타이머 진행 중 화면 끄지 않기',
 
@@ -127,6 +131,10 @@ export const settings: Dict = {
     'settings.notifications': 'Notifications',
     'settings.notifications.hint': 'Show a notification when a session ends',
     'settings.vibration': 'Vibration',
+    'settings.alertMode': 'Alert style',
+    'settings.alertMode.both': 'Both',
+    'settings.alertMode.sound': 'Sound',
+    'settings.alertMode.vibration': 'Vibrate',
     'settings.keepAwake': 'Keep screen on',
     'settings.keepAwake.hint': "Don't turn off the screen while the timer runs",
 
