@@ -1,38 +1,25 @@
-name: Android Build
-
-# Builds the web app, wraps it with Capacitor, and produces Android artifacts.
-# - Always builds a debug APK and uploads it.
-# - If release signing secrets are configured, also builds a signed APK + AAB.
-# - On every push to main (when signed): refreshes a rolling "latest" prerelease
-#   whose attached APK/AAB are always the newest signed main build.
-# - On a version tag (vX.Y.Z), attaches the signed artifacts to a GitHub Release.
-#
-# Required repository secrets for signed builds (Settings → Secrets → Actions):
-#   KEYSTORE_BASE64     base64 of your release keystore   (base64 -w0 pomo-release.jks)
-#   KEYSTORE_PASSWORD   keystore password
-#   KEY_ALIAS           key alias (e.g. pomo)
-#   KEY_PASSWORD        key password (often same as keystore password)
+name: Android CI
 
 on:
   push:
-    branches: [main]
-    tags: ['v*']
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
-concurrency:
-  group: android-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,6 +29,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -52,7 +40,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install SDK packages
+      - name: Install Android SDK packages
         run: |
           yes | sdkmanager --licenses > /dev/null || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
@@ -60,108 +48,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build web + sync Capacitor
-        run: |
-          npm run build
-          npx cap sync android
+      - name: Build web app
+        run: npm run build
 
-      - name: Make gradlew executable
+      - name: Sync Capacitor Android project
+        run: npx cap sync android
+
+      - name: Make Gradle wrapper executable
         run: chmod +x android/gradlew
-
-      - name: Set up release signing
-        if: ${{ env.KEYSTORE_BASE64 != '' }}
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > android/pomo-release.jks
-          {
-            echo "storeFile=pomo-release.jks"
-            echo "storePassword=${KEYSTORE_PASSWORD}"
-            echo "keyAlias=${KEY_ALIAS}"
-            echo "keyPassword=${KEY_PASSWORD}"
-          } > android/keystore.properties
 
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Build signed release APK + AAB
-        if: ${{ env.KEYSTORE_BASE64 != '' }}
-        working-directory: android
-        run: ./gradlew assembleRelease bundleRelease
-
-      - name: Upload debug APK
+      - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: pomo-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
-
-      - name: Upload signed release artifacts
-        if: ${{ env.KEYSTORE_BASE64 != '' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: pomo-release
-          path: |
-            android/app/build/outputs/apk/release/app-release.apk
-            android/app/build/outputs/bundle/release/app-release.aab
-          if-no-files-found: warn
-
-      - name: Refresh rolling "latest" prerelease (main, signed)
-        if: ${{ github.ref == 'refs/heads/main' && env.KEYSTORE_BASE64 != '' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -e
-          # Recreate a moving "latest" release pointed at this commit so the
-          # attached signed APK/AAB are always the newest main build.
-          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
-          NOTES="최신 main 빌드의 서명된 APK입니다. (커밋 ${GITHUB_SHA::7})
-
-          - **pomo-release.apk** — 기기에 설치하는 서명된 APK
-          - **pomo-release.aab** — Play 업로드용 번들
-
-          이 릴리스는 main에 push될 때마다 자동으로 최신 빌드로 갱신됩니다."
-          ASSETS=()
-          [ -f android/app/build/outputs/apk/release/app-release.apk ] && \
-            ASSETS+=("android/app/build/outputs/apk/release/app-release.apk#pomo-release.apk")
-          [ -f android/app/build/outputs/bundle/release/app-release.aab ] && \
-            ASSETS+=("android/app/build/outputs/bundle/release/app-release.aab#pomo-release.aab")
-          gh release create latest \
-            --title "Pomo (latest)" \
-            --prerelease \
-            --target "$GITHUB_SHA" \
-            --notes "$NOTES" \
-            "${ASSETS[@]}"
-
-      - name: Stage release assets (on tag)
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        run: |
-          mkdir -p release-assets
-          V="${GITHUB_REF_NAME}"
-          cp android/app/build/outputs/apk/debug/app-debug.apk "release-assets/pomo-${V}-debug.apk"
-          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
-            cp android/app/build/outputs/apk/release/app-release.apk "release-assets/pomo-${V}-release.apk"
-          fi
-          if [ -f android/app/build/outputs/bundle/release/app-release.aab ]; then
-            cp android/app/build/outputs/bundle/release/app-release.aab "release-assets/pomo-${V}.aab"
-          fi
-          ls -la release-assets
-
-      - name: Create GitHub Release (on tag)
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        uses: softprops/action-gh-release@v2
-        with:
-          name: Pomo ${{ github.ref_name }}
-          generate_release_notes: true
-          fail_on_unmatched_files: false
-          body: |
-            **Pomo** — 뽀모도로 집중 타이머 & 할 일 안드로이드 앱 (PWA + Capacitor).
-            로그인 불필요 · 오프라인 동작 · 모든 데이터는 기기에만 저장.
-
-            ### 설치
-            아래 `pomo-${{ github.ref_name }}-debug.apk`를 받아 안드로이드에서 설치하세요
-            ("출처를 알 수 없는 앱" 허용 필요). 저장소에 서명 시크릿(`KEYSTORE_BASE64` 등)을
-            설정하면 서명된 `-release.apk` 와 Play 업로드용 `.aab` 도 함께 첨부됩니다.
-          files: release-assets/*
+          if-no-files-found: error

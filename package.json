@@ -1,6 +1,6 @@
 {
   "name": "pomo",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "Pomo — a simple, refined Pomodoro focus & to-do PWA",
   "type": "module",
   "scripts": {

@@ -5,6 +5,8 @@ node_modules/
 dist/
 dist-ssr/
 *.local
+android/keystore.properties
+android/*.jks
 
 # logs
 logs/
